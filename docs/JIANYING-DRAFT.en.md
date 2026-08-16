@@ -7,7 +7,7 @@ Director timeline (`src/finalcut/timeline.ts`) → JianYing-importable draft fol
 - The draft format is community reverse-engineered (same lineage as cutcli / ArcReel), not officially documented by ByteDance.
 - Conservative field set: canvas_config / materials(videos,audios,texts,video_tracks,audio_tracks,text_tracks) / tracks.
 - Version-sensitive: pin your JianYing version; re-validate on upgrades (`validateDraft()` checks id uniqueness, reference integrity, timeline legality).
-- End-to-end import test requires a JianYing client — not executed on this machine (honest pending).
+- End-to-end import test requires a JianYing client — not run here (no JianYing client on this machine).
 
 ## Channel matrix
 
