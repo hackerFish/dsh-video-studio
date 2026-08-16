@@ -4,7 +4,7 @@ import { writeFile } from 'node:fs/promises'
 import { createTimeline, addClip, addSubtitle, addAudio, type Timeline } from '../finalcut/timeline.ts'
 import { renderTimeline, runFfmpeg, probeDurationSec } from '../finalcut/render-ffmpeg.ts'
 import { sayTts, sayAvailable } from '../voice/say-tts.ts'
-import { pickAccount, recordUsage, type QuotaAccount } from '../quota/scheduler.ts'
+import { pickAccount, recordUsage, AccountPool, type QuotaAccount } from '../quota/scheduler.ts'
 import { mergePromptLayers } from '../prompts/style-dna.ts'
 import { STAGES, gatesOf, type GateMode } from './stages.ts'
 import { reviewShot, shouldRetry, type Reviewer } from '../quality/review.ts'
@@ -51,6 +51,8 @@ export interface PipelineOptions {
     maxRetries?: number
     /** 评分回写闭环：提供评分簿时，提示词按历史得分选增益，评审分数回写 */
     scorebook?: BoosterScorebook | null
+    /** 账号池调度：提供时按健康度/额度轮换，失败退避、成功回写 */
+    pool?: AccountPool | null
   }
   gates?: Partial<Record<string, GateMode>>
   ask?: (stage: string) => Promise<boolean> | boolean
@@ -79,6 +81,7 @@ interface ShotSlot {
   still: string
   jobId: string | null
   voice: string | null
+  accountId: string | null
 }
 
 export async function runPipeline({
@@ -124,21 +127,63 @@ export async function runPipeline({
   const slots: ShotSlot[] = []
   for (const b of boards) {
     if (!(await ok('stills'))) { emit('stills', 'halted', b.index); break }
-    const { account, reason } = pickAccount(accounts, { preferCost: opts.preferCost ?? true })
+    const picked = opts.pool ? opts.pool.pick() : pickAccount(accounts, { preferCost: opts.preferCost ?? true })
+    const { account, reason } = picked
     if (account) {
-      const idx = accounts.indexOf(account)
-      accounts[idx] = recordUsage(account)
+      if (opts.pool) opts.pool.charge(account.id)
+      else {
+        const idx = accounts.indexOf(account)
+        if (idx >= 0) accounts[idx] = recordUsage(account)
+      }
       audit.accounts.push({ shot: b.index, account: account.id, reason })
     }
     const provider = providers.find((p) => p.id === account?.provider) ?? providers[0]
     if (!provider) throw new Error(`镜头 ${b.index}: 无可用供应商（providers 为空且无账号路由）`)
     audit.decisions.push({ shot: b.index, provider: provider.id, account: account?.id ?? null, reason })
-    slots.push({ b, provider, still: `${workDir}/shot${b.index}.mp4`, jobId: null, voice: null })
+    slots.push({ b, provider, still: `${workDir}/shot${b.index}.mp4`, jobId: null, voice: null, accountId: account?.id ?? null })
   }
 
   let running = 0
   const queue = [...slots]
   const submitted: ShotSlot[] = []
+  // 提交 + 账号池降级：失败账号进入退避，自动换下一个健康账号重提
+  const submitWithFallback = async (s: ShotSlot): Promise<void> => {
+    const tried = new Set<string>([s.accountId ?? ''])
+    const spec = { positive: s.b.prompt.positive, negative: s.b.prompt.negative, width: W, height: H }
+    for (let attempt = 0; attempt <= (opts.pool?.size ?? 1); attempt++) {
+      try {
+        if (s.provider.id === 'mock') {
+          await runFfmpeg(['-y', '-f', 'lavfi', '-i', `color=c=0x1d5a9e:s=${W}x${H}:d=1`, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-t', '1', s.still])
+          emit('shot-assets', 'mock', s.b.index)
+        } else {
+          const { jobId } = await s.provider.submit('shot-assets', spec)
+          s.jobId = jobId
+          emit('shot-assets', 'submitted', { shot: s.b.index, jobId, provider: s.provider.id })
+        }
+        return
+      } catch (e) {
+        const msg = String(e instanceof Error ? e.message : e)
+        if (opts.pool && s.accountId) opts.pool.recordFailure(s.accountId, msg)
+        emit('shot-assets', 'submit-error', { shot: s.b.index, error: msg })
+        if (!opts.pool) throw e
+        const next = opts.pool.pick()
+        const fallback = next.account
+        if (fallback && next.reason === 'ok' && !tried.has(fallback.id)) {
+          const p = providers.find((x) => x.id === fallback.provider)
+          if (p) {
+            tried.add(fallback.id)
+            s.provider = p
+            s.accountId = fallback.id
+            opts.pool.charge(fallback.id)
+            emit('shot-assets', 'fallback', { shot: s.b.index, account: fallback.id })
+            continue
+          }
+        }
+        throw e
+      }
+    }
+    throw new Error(`镜头 ${s.b.index}: 提交失败且账号池无可用备胎`)
+  }
   await new Promise<void>((resolveAll) => {
     const pump = (): void => {
       while (running < concurrency && queue.length) {
@@ -147,18 +192,8 @@ export async function runPipeline({
         void (async () => {
           try {
             if (s.b.index === 0) emit('master-asset', 'primary', s.b.index)
-            if (s.provider.id === 'mock') {
-              await runFfmpeg(['-y', '-f', 'lavfi', '-i', `color=c=0x1d5a9e:s=${W}x${H}:d=1`, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-t', '1', s.still])
-              emit('shot-assets', 'mock', s.b.index)
-            } else {
-              const { jobId } = await s.provider.submit('shot-assets', { positive: s.b.prompt.positive, negative: s.b.prompt.negative, width: W, height: H })
-              s.jobId = jobId
-              emit('shot-assets', 'submitted', { shot: s.b.index, jobId, provider: s.provider.id })
-            }
+            await submitWithFallback(s)
             submitted.push(s)
-          } catch (e) {
-            emit('shot-assets', 'submit-error', { shot: s.b.index, error: String(e instanceof Error ? e.message : e) })
-            throw e
           } finally {
             running--
             pump()
@@ -174,6 +209,15 @@ export async function runPipeline({
   const deadline = Date.now() + maxPollMs
   const maxRetries = opts.maxRetries ?? 2
   const pollOne = async (s: ShotSlot): Promise<void> => {
+    try {
+      await pollInner(s)
+      if (opts.pool && s.accountId) opts.pool.recordSuccess(s.accountId)
+    } catch (e) {
+      if (opts.pool && s.accountId) opts.pool.recordFailure(s.accountId, e instanceof Error ? e.message : String(e))
+      throw e
+    }
+  }
+  const pollInner = async (s: ShotSlot): Promise<void> => {
     let retries = 0
     let negative = s.b.prompt.negative
     while (Date.now() < deadline) {
