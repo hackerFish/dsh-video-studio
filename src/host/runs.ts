@@ -17,7 +17,7 @@ export interface RunRecord {
   events: RunEvent[]
 }
 
-export const WHALE_STAGES = ['parse', 'storyboard', 'stills', 'video', 'voice', 'final-cut'] as const
+export const WHALE_STAGES = ['story', 'script', 'storyboard', 'master-asset', 'shot-assets', 'video', 'final-cut'] as const
 
 const runs = new Map<string, RunRecord>()
 const MAX_RUNS = 20
