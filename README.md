@@ -1,6 +1,6 @@
 # 🐳 dsh-video-studio (Whale) — AI Video & Motion-Comic Studio for DeepSeek Harness
 
-**A DeepSeek Harness native plugin for AI video and motion-comic (漫剧) production: six-stage director pipeline × multi-provider free-quota scheduling × four-layer prompt engineering with self-optimization. Quality first, cost second.**
+**A DeepSeek Harness native plugin for AI video and motion-comic (漫剧) production: seven-stage director pipeline × multi-account quota pool with failure fallback × credential vault × four-layer prompt engineering with a score-feedback loop. Quality first, cost second.**
 
 [中文](README.zh.md) · Siblings: [dsh-lab](https://github.com/hackerFish/dsh-lab) · [awesome-dsh-skills](https://github.com/hackerFish/awesome-dsh-skills) · [awesome-dsh-presets](https://github.com/hackerFish/awesome-dsh-presets)
 
@@ -31,10 +31,12 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 
 - **Consistency asset library**: character/scene master assets + per-shot variations with automatic reference-image injection into prompts (the motion-comic standard technique)
 - **Parallel shots**: batch submit → concurrent polling (configurable concurrency)
-- **Quota scheduler**: multi-account free-quota rotation, quality-aware fallback, per-day caps, full audit
+- **Account pool (quota scheduler)**: multi-account rotation per provider, per-day caps, exponential backoff on failure, automatic fallback re-submit to the next healthy account mid-pipeline, full audit trail
+- **Credential vault**: `~/.whale/whale.json` (0600, atomic writes), masked API responses, account management UI in the plugin settings (鲸影账号 tab)
 - **Style genome (memory)**: style DNA, shot-template scoring evolution, retry feedback — persists across sessions
 - **Prompt engineering**: parameterized professional template library (character sheet / scene master / single shot) + composable quality boosters (8K / clean bg / neutral face / no text …) + optimizer; `whale_optimize_prompt` upgrades drafts to pro-grade prompts locally
-- **Prompt self-optimization**: A/B → frame scoring → promote (≥4) / retry (≤2) templates
+- **Score-feedback loop (评分回写)**: every reviewed shot writes its score + booster combo back to the scorebook; the optimizer then picks boosters by real historical performance
+- **Preset motion-comic pack**: 5 genres (city comeback / xianxia / suspense / sweet romance / sci-fi) with bilingual character cards, scene cards and shot scripts — `whale_story_presets` turns one preset id into a pipeline-ready script, `scripts/demo-presets.ts` runs it end-to-end with the mock provider (zero keys)
 
 ## Providers (verified matrix)
 
@@ -44,6 +46,7 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 | tongyi-wanx (通义万相) | cookie+xsrf, free credits | ✅ **live-verified: real whale image generated & downloaded** (free tier = text-to-image; video needs membership) |
 | kling official (可灵) | accessKey:secretKey JWT, api-beijing.klingai.com | ✅ adapter written — not yet tested against a real key |
 | kling via DashScope | `sk-` key | ✅ adapter written — not yet tested against a real key |
+| **kling-lipsync (可灵对口型)** | official JWT, `/v1/videos/lip-sync` | ✅ adapter written against the official 3-13 contract (audio2video + text2video voice modes), 8 tests — not yet tested against a real key |
 | **wan video via DashScope (通义万相视频)** | `sk-` key, official free quota | ✅ adapter written (same async protocol as kling) — model id to confirm on first real key |
 | doubao (火山方舟) | ARK API key | ✅ Seedance video + **Seedream image** (assets) — not yet tested against a real key |
 | **doubao-web (豆包网页版)** | cookie, free web quota | ✅ **live-replayed & parsed**: SSE chat for the LLM stages (story/script/shots) + image bot for assets. Pro-tier free quota runs on a 7-day window (image bot pauses when spent; text keeps working) |
@@ -59,13 +62,15 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 
 ## DSH integration (deep invocation)
 
-- **Model tools**: `whale_storyboard` (offline shot planning), `whale_generate_video` (provider routing with honest error surfacing), `whale_quality_review` (rule-level QC; LLM frame review planned)
-- **Host plugin**: `/dsh-video-studio/health` route; installs via `dsh plugin add`, boot-verified clean
-- Planned: slash commands, subagent-parallel shots, workbench UI, style-genome wiring
+- **Model tools**: `whale_story_presets` (5-genre content pack → pipeline script), `whale_storyboard` (offline shot planning), `whale_generate_video` (provider routing), `whale_optimize_prompt` (pro-grade prompt upgrade), `whale_quality_review` (rule-level QC), `whale_comfyui_workflow` (ComfyUI workflow JSON)
+- **Host routes**: `/dsh-video-studio/health`, `/dsh-video-studio/runs`, `/dsh-video-studio/accounts` (GET list masked / POST add / DELETE remove)
+- **Client UI**: 鲸影 (status) · 鲸影工作台 (live pipeline progress per run) · 鲸影账号 (account vault management) tabs in plugin settings; `whale_generate_video` gets a dedicated video card view
+- Installs via `dsh plugin add`, boot-verified clean
+- Planned: slash commands, subagent-parallel shots, lip-sync stage wiring into the final cut
 
 ## Verification discipline
 
-43 unit tests green (quota routing, prompt merging, jianying draft structure, ffmpeg end-to-end render, provider protocols via mock servers, live jimeng model probe, live wanx image generation). Test logs and proof artifacts live in `demos/`.
+101 unit tests green (account pool rotation/backoff/fallback, credential vault, quota routing, prompt merging, score-feedback loop, jianying draft structure, ffmpeg end-to-end render, provider protocols via mock servers incl. kling lip-sync, preset pack integrity, live jimeng model probe, live wanx image generation). Test logs and proof artifacts live in `demos/`.
 
 ## Install
 
@@ -76,7 +81,7 @@ dsh plugin --profile web add github:hackerFish/dsh-video-studio --ignore-workspa
 
 ## Honesty notes
 
-Model output quality is bounded by the vendor model; the pipeline maximizes it (consistency tokens, QC retry loop planned). sessionid/cookie usage is per-platform ToS — respect each platform's terms. Not affiliated with DeepSeek.
+Model output quality is bounded by the vendor model; the pipeline maximizes it (consistency tokens, QC retry loop, score-feedback booster selection). sessionid/cookie usage is per-platform ToS — respect each platform's terms. Credentials live only in the local vault file and are never logged or returned unmasked. Not affiliated with DeepSeek.
 
 ## License
 
