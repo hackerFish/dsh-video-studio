@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { route, assertProvider, type Provider } from '../src/provider.ts'
-import { createMockProvider } from '../src/providers/mock.js'
+import { createMockProvider } from '../src/providers/mock.ts'
 
 const fake = (id: string, caps: Provider['capabilities']): Provider => ({
   id, capabilities: caps,

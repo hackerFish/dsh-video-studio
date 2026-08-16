@@ -40,6 +40,12 @@ export interface ProviderHealth {
   [key: string]: unknown
 }
 
+export interface CreditEnsureResult {
+  received: boolean
+  remaining?: number | null
+  note?: string
+}
+
 export interface Provider {
   id: string
   capabilities: ProviderCapabilities
@@ -48,6 +54,8 @@ export interface Provider {
   status(jobId: string): Promise<ProviderStatus>
   fetch(jobId: string): Promise<ProviderFetchResult>
   health(): Promise<ProviderHealth>
+  /** Best-effort free-credit top-up (optional; only free-quota providers implement it). */
+  ensureCredits?(): Promise<CreditEnsureResult>
 }
 
 export function assertProvider(p: Provider): Provider {
