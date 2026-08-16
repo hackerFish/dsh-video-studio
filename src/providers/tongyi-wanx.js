@@ -1,79 +1,84 @@
-// 通义万相 web 通道（免费额度路线）：wanx.aliyun.com 官网接口。
-// 协议骨架来自社区逆向（revTongYi, 文生图已验）：Cookie 鉴权 + x-xsrf-token 头 + referer。
-// 文生图路径（text_to_image）为已验证结构；文生视频（text_to_video）端点标记 UNVERIFIED，
-// 待真实 Cookie 实测后固化（与即梦适配器同样的经验迭代法）。
-// 凭证：wanx.aliyun.com 的 Cookie（登录通义万相后自取，含 XSRF-TOKEN）。
-import { randomUUID } from 'node:crypto'
+// 通义万相 web 通道（免费额度路线，2026-08-16 真机实测版协议）。
+// 实测结论：
+//   - 提交: POST https://wanx.biz.aliyun.com/wanx/api/common/imageGen
+//     body: {deductMode:"credit_mode", taskType:"text_to_image",
+//            taskInput:{subType:"basic", modelVersion:"2_1_max", generationMode:"imaginative", prompt, ratio}}
+//     → {success:true, data:"<taskId>"}
+//   - 查询: POST /wanx/api/common/task/list {taskTypes:["text_to_image"]}
+//     → data[{taskId, status(2=完成), taskRate(100=完成), taskResult:[{url, ossPath}]}]
+//   - 凭证: Cookie(含 login_aliyunid_ticket/WANX_CN_SESSION) + x-xsrf-token + x-wan-uid + x-platform:web
+//   - 提交需要 bx-ua（阿里风控签名，抓包获取，分钟内可回放；过期后重新抓包）；查询不需要
+//   - 免费档只开放文生图（视频需会员）→ 定位：漫剧"一致性静帧"供应商
 import { assertProvider } from '../provider.js'
 
-const BASE = 'https://wanx.aliyun.com/wanx'
+const BASE = 'https://wanx.biz.aliyun.com/wanx/api'
 
-export function parseCookieStr(str) {
-  const cookies = {}
-  for (const part of String(str ?? '').split(';')) {
-    const p = part.trim()
-    if (!p) continue
-    const i = p.indexOf('=')
-    if (i > 0) cookies[p.slice(0, i).trim()] = p.slice(i + 1).trim()
-  }
-  return cookies
-}
-
-export function createTongyiWanxProvider({ cookieStr, baseUrl = BASE, timeoutMs = 60000, fetchImpl = fetch } = {}) {
-  const cookies = parseCookieStr(cookieStr)
-  if (!cookies['XSRF-TOKEN']) throw new Error('tongyi-wanx: Cookie 缺少 XSRF-TOKEN')
-  const headers = {
-    accept: 'application/json, text/plain, */*',
-    'content-type': 'application/json',
-    referer: 'https://wanx.aliyun.com/creation',
-    'x-xsrf-token': cookies['XSRF-TOKEN'],
-    cookie: Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; '),
-  }
-  const api = async (method, path, data) => {
-    const res = await fetchImpl(`${baseUrl}${path}`, { method, headers, body: data ? JSON.stringify(data) : undefined, signal: AbortSignal.timeout(timeoutMs) })
+export function createTongyiWanxProvider({ cookieStr, xsrfToken, wanUid, bxUa = '', bxUmidToken = '', baseUrl = BASE, timeoutMs = 60000, fetchImpl = fetch } = {}) {
+  if (!cookieStr) throw new Error('tongyi-wanx: 缺少 cookieStr')
+  if (!xsrfToken) throw new Error('tongyi-wanx: 缺少 xsrfToken')
+  if (!wanUid) throw new Error('tongyi-wanx: 缺少 wanUid')
+  const api = async (path, data, { withBx = false } = {}) => {
+    const headers = {
+      'content-type': 'application/json',
+      origin: 'https://tongyi.aliyun.com',
+      referer: 'https://tongyi.aliyun.com/wan/generate/image/generate',
+      'x-platform': 'web',
+      'x-wan-uid': String(wanUid),
+      'x-xsrf-token': String(xsrfToken),
+      'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+      cookie: cookieStr,
+    }
+    if (withBx) {
+      if (bxUa) headers['bx-ua'] = bxUa
+      if (bxUmidToken) headers['bx-umidtoken'] = bxUmidToken
+    }
+    const res = await fetchImpl(`${baseUrl}${path}`, { method: 'POST', headers, body: JSON.stringify(data), signal: AbortSignal.timeout(timeoutMs) })
     if (!res.ok) throw new Error(`wanx HTTP ${res.status} ${path}`)
-    const j = await res.json()
-    if (j && j.success === false) throw new Error(`wanx 失败: ${JSON.stringify(j).slice(0, 200)}`)
+    const text = await res.text()
+    if (!text) throw new Error(`wanx 空响应 ${path}（可能缺少 bx-ua 或端点错误）`)
+    const j = JSON.parse(text)
+    if (j?.success !== true) throw new Error(`wanx 失败: ${JSON.stringify(j).slice(0, 200)}`)
     return j
   }
   return assertProvider({
     id: 'tongyi-wanx',
-    capabilities: { textToVideo: true, imageToVideo: false, firstLastFrame: false, lipSync: false, tts: false, image: true, maxDurationSec: 10, resolutions: ['720p'], qualityTier: 4, freeQuota: true },
-    async quote() { return { qualityTier: 4, costEstimate: 0, currency: 'wanx-free' } },
+    capabilities: { textToVideo: false, imageToVideo: false, firstLastFrame: false, lipSync: false, tts: false, image: true, maxDurationSec: 0, resolutions: ['1:1', '16:9', '9:16'], qualityTier: 5, freeQuota: true },
+    async quote() { return { qualityTier: 5, costEstimate: 0, currency: 'wanx-free-credit' } },
     async health() {
-      try { await api('POST', '/task/list', { taskTypes: ['text_to_image'] }); return { ok: true, quotaRemaining: null } }
-      catch (e) { return { ok: false, error: String(e?.message ?? e).slice(0, 100) } }
+      try { await api('/common/task/list', { taskTypes: ['text_to_image'] }); return { ok: true, quotaRemaining: null } }
+      catch (e) { return { ok: false, error: String(e?.message ?? e).slice(0, 120) } }
     },
-    async submit(stage, spec) {
-      // 文生图：已验证结构；文生视频：UNVERIFIED 端点（待 Cookie 实测修正 taskType/端点）
-      const isVideo = stage === 'video' || stage === 'stills'
-      const body = {
-        taskType: isVideo ? 'text_to_video' : 'text_to_image',
+    async submit(_stage, spec) {
+      const j = await api('/common/imageGen', {
+        deductMode: 'credit_mode',
+        taskType: 'text_to_image',
         taskInput: {
+          subType: spec?.subType ?? 'basic',
+          modelVersion: spec?.modelVersion ?? '2_1_max',
+          generationMode: spec?.generationMode ?? 'imaginative',
+          modelIds: [],
           prompt: spec?.positive ?? spec?.prompt ?? '',
-          ...(isVideo ? {} : { style: spec?.style ?? '<auto>', resolution: spec?.resolution ?? '1024*1024' }),
+          ratio: spec?.ratio ?? '1:1',
         },
-      }
-      const j = await api('POST', isVideo ? '/videoGen' : '/imageGen', body)
+      }, { withBx: true })
       const taskId = j?.data
-      if (!taskId) throw new Error('wanx: 缺少 taskId: ' + JSON.stringify(j).slice(0, 200))
+      if (!taskId) throw new Error('wanx: 缺少 taskId')
       return { jobId: String(taskId) }
     },
     async status(jobId) {
-      const j = await api('POST', '/task/list', { taskTypes: ['text_to_video', 'text_to_image'] })
-      const item = (j?.data ?? []).find((x) => String(x?.id) === String(jobId) || String(x?.taskId) === String(jobId))
+      const j = await api('/common/task/list', { taskTypes: ['text_to_image'] })
+      const item = (j?.data ?? []).find((x) => String(x?.taskId) === String(jobId))
       if (!item) return { state: 'running', progress: null }
-      const st = String(item?.status ?? item?.state ?? '').toLowerCase()
-      if (['success', 'succeed', 'done', 'complete', 'finish', 'finished'].includes(st)) return { state: 'done', progress: 1 }
-      if (['fail', 'failed', 'error'].includes(st)) return { state: 'failed', progress: 1, error: String(item?.message ?? 'failed') }
-      return { state: 'running', progress: null }
+      if (item.status === 2 && (item.taskRate ?? 0) >= 100) return { state: 'done', progress: 1 }
+      if (item.status === 3 || item.status === 4) return { state: 'failed', progress: 1, error: `wanx status=${item.status}` }
+      return { state: 'running', progress: item.taskRate ?? null }
     },
     async fetch(jobId) {
-      const j = await api('POST', '/task/list', { taskTypes: ['text_to_video', 'text_to_image'] })
-      const item = (j?.data ?? []).find((x) => String(x?.id) === String(jobId) || String(x?.taskId) === String(jobId))
-      const url = item?.videoUrl ?? item?.video_url ?? item?.imageUrl ?? item?.image_url ?? item?.url
-      if (!url) throw new Error('wanx: 未找到输出地址: ' + JSON.stringify(item ?? {}).slice(0, 200))
-      return { outputs: [url], meta: { status: 'success' } }
+      const j = await api('/common/task/list', { taskTypes: ['text_to_image'] })
+      const item = (j?.data ?? []).find((x) => String(x?.taskId) === String(jobId))
+      const url = item?.taskResult?.[0]?.url
+      if (!url) throw new Error('wanx: 无图片地址')
+      return { outputs: [url], meta: { status: 'success', taskRate: item.taskRate } }
     },
   })
 }
