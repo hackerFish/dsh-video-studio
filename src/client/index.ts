@@ -52,7 +52,7 @@ function VideoCard(props: any): any {
 
 // 鲸影工作台：六段流水线可视化（轮询 /dsh-video-studio/runs，展示每次生成的阶段进度与事件流）
 const WHALE_STAGE_LABELS: Record<string, string> = {
-  parse: '解析', storyboard: '分镜', stills: '静帧', video: '视频', voice: '配音', 'final-cut': '终剪',
+  story: '故事', script: '剧本', storyboard: '分镜', 'master-asset': '主图', 'shot-assets': '资产图', video: '视频', 'final-cut': '成片',
 }
 
 function WorkbenchPanel(_props: any): any {
