@@ -58,7 +58,7 @@ export interface Provider {
   ensureCredits?(): Promise<CreditEnsureResult>
 }
 
-export function assertProvider(p: Provider): Provider {
+export function assertProvider<T extends Provider>(p: T): T {
   for (const m of ['id', 'capabilities', 'quote', 'submit', 'status', 'fetch', 'health'] as const) {
     if (typeof (p as unknown as Record<string, unknown>)[m] === 'undefined') {
       throw new Error(`provider ${p?.id ?? '?'} 缺少方法/字段: ${m}`)
