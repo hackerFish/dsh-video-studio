@@ -8,6 +8,8 @@ import { pickAccount, recordUsage, type QuotaAccount } from '../quota/scheduler.
 import { mergePromptLayers } from '../prompts/style-dna.ts'
 import { STAGES, gatesOf, type GateMode } from './stages.ts'
 import { reviewShot, shouldRetry, type Reviewer } from '../quality/review.ts'
+import { optimizePrompt } from '../prompts/optimizer.ts'
+import type { BoosterScorebook } from '../prompts/boost-scorebook.ts'
 import type { Provider } from '../provider.ts'
 
 export interface ScriptShot {
@@ -47,6 +49,8 @@ export interface PipelineOptions {
     reviewer?: Reviewer | null
     /** 每个镜头最多重拍次数（默认 2） */
     maxRetries?: number
+    /** 评分回写闭环：提供评分簿时，提示词按历史得分选增益，评审分数回写 */
+    scorebook?: BoosterScorebook | null
   }
   gates?: Partial<Record<string, GateMode>>
   ask?: (stage: string) => Promise<boolean> | boolean
@@ -65,7 +69,7 @@ export interface PipelineResult {
 interface Board {
   index: number
   line: string
-  prompt: { positive: string; negative: string }
+  prompt: { positive: string; negative: string; boosters: string[] }
   durationSec: number
 }
 
@@ -97,12 +101,18 @@ export async function runPipeline({
   emit('story', 'script', shots.length)
   emit('script', 'shots', shots.length)
 
-  const boards = shots.map((s, i) => ({
-    index: i,
-    line: s.line,
-    prompt: mergePromptLayers({ dna: opts.styleDna ?? '', shotTemplate: opts.shotTemplate ?? '', manual: s.prompt ?? '' }),
-    durationSec: s.durationSec ?? 3,
-  }))
+  const boards = shots.map((s, i) => {
+    const base = mergePromptLayers({ dna: opts.styleDna ?? '', shotTemplate: opts.shotTemplate ?? '', manual: s.prompt ?? '' })
+    const opt = opts.scorebook
+      ? optimizePrompt(base.positive || '通用画面', { style: opts.styleDna, scorebook: opts.scorebook })
+      : { optimized: base.positive || '通用画面', appliedBoosters: [] as string[], negative: [] as string[] }
+    return {
+      index: i,
+      line: s.line,
+      prompt: { positive: opt.optimized, negative: base.negative, boosters: opt.appliedBoosters },
+      durationSec: s.durationSec ?? 3,
+    }
+  })
   emit('storyboard', 'boards', boards.length)
 
   const tl = createTimeline({ width: W, height: H })
@@ -184,6 +194,10 @@ export async function runPipeline({
         if (opts.reviewer) {
           const review = await reviewShot({ videoPath: s.still, shotPrompt: s.b.prompt.positive, reviewer: opts.reviewer, workDir: `${workDir}/review${s.b.index}-${retries}` })
           emit('review', review.score === null ? 'rules' : review.retry ? 'retry' : review.promote ? 'promote' : 'accept', { shot: s.b.index, score: review.score, issues: review.issues })
+          // 评分回写闭环：把本镜得分与所用增益组合写回评分簿
+          if (opts.scorebook && review.score !== null) {
+            opts.scorebook.recordOutcome(opts.styleDna ?? '', s.b.prompt.boosters, review.score, 'pipeline-review')
+          }
           if (shouldRetry(review.score, retries, maxRetries)) {
             retries++
             negative = [negative, ...review.issues.map((i) => `（避免：${i}）`)].filter(Boolean).join(' ')
