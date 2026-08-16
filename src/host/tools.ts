@@ -7,6 +7,7 @@ import { optimizePrompt } from '../prompts/optimizer.ts'
 import { applyTemplate, listTemplates } from '../prompts/templates.ts'
 import { buildWorkflow, validateWorkflow } from '../director/workflow-builder.ts'
 import { listStoryPresets, getStoryPreset, presetToScript } from '../content/presets.ts'
+import { buildAudit } from '../selfaudit/audit.ts'
 import type { ProviderStatus } from '../provider.ts'
 import { createJimengProvider } from '../providers/jimeng.ts'
 import { createMockProvider } from '../providers/mock.ts'
@@ -259,6 +260,60 @@ export function registerTools(ctx: any): void {
       const preset = getStoryPreset(String(args.preset_id))
       if (!preset) throw new Error(`未知题材: ${args.preset_id}（可选 ${listStoryPresets().map((p) => p.id).join('/')}）`)
       return Promise.resolve({ presets: listStoryPresets(), script: presetToScript(preset) })
+    },
+  })
+
+  ctx.tools.register({
+    name: 'whale_self_audit',
+    description: '鲸影自我分析：扫描本插件源码/测试/供应商矩阵/能力清单/差距清单，返回审计报告数据。纯本地只读，用于会话内差距分析与日报。',
+    parameters: {},
+    output: {
+      schema: {
+        type: 'object', additionalProperties: false,
+        properties: {
+          generatedAt: { type: 'string', required: true },
+          packageVersion: { type: 'string', required: true },
+          tests: { type: 'object', required: true, additionalProperties: false,
+            properties: { files: { type: 'integer', required: true }, cases: { type: 'integer', required: true } } },
+          matrix: { type: 'object', required: true, additionalProperties: false,
+            properties: {
+              total: { type: 'integer', required: true },
+              liveVerified: { type: 'integer', required: true },
+              adapter: { type: 'integer', required: true },
+              waitingKey: { type: 'integer', required: true },
+            } },
+          providers: { type: 'array', required: true, items: { type: 'object', additionalProperties: false,
+            properties: {
+              id: { type: 'string', required: true },
+              status: { type: 'string', required: true },
+              note: { type: 'string', required: true },
+            } } },
+          tools: { type: 'array', required: true, items: { type: 'string' } },
+          gaps: { type: 'array', required: true, items: { type: 'object', additionalProperties: false,
+            properties: {
+              id: { type: 'string', required: true },
+              item: { type: 'string', required: true },
+              status: { type: 'string', required: true },
+              note: { type: 'string', required: true },
+            } } },
+          summary: { type: 'string', required: true },
+        },
+      },
+      render: (_args: unknown, value: { summary: string }) => [{ type: 'text', text: value.summary }],
+    },
+    execute() {
+      const a = buildAudit()
+      const waiting = a.gaps.filter((g) => g.status === 'waiting-key').map((g) => g.item).join('、') || '无'
+      return Promise.resolve({
+        generatedAt: a.generatedAt,
+        packageVersion: a.package.version,
+        tests: a.tests,
+        matrix: a.matrix,
+        providers: a.providers.map((p) => ({ id: p.id, status: p.status, note: p.note })),
+        tools: a.tools,
+        gaps: a.gaps,
+        summary: `鲸影自审 @${a.package.version}：${a.tests.files} 测试文件/${a.tests.cases} 用例；供应商 ${a.matrix.total} 个（实测 ${a.matrix.liveVerified}）；差距 ${a.gaps.length} 条，等 key：${waiting}。`,
+      })
     },
   })
 

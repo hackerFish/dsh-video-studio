@@ -1,12 +1,13 @@
 {
   "name": "@hackerfish/dsh-video-studio",
   "version": "0.2.0",
-  "description": "鲸影 DSH Video Studio：DSH 原生视频/漫剧生成插件（六段导演流水线 × 多供应商额度调度 × 提示词自优化）",
+  "description": "鲸影 DSH Video Studio：DSH 原生视频/漫剧生成插件（七段导演流水线 × 多账号额度池 × 提示词自优化 × 自我审计）",
   "type": "module",
   "scripts": {
     "build": "tsup && node scripts/wrap-client.mjs && node scripts/self-test-client.mjs",
     "test": "node --test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "self-audit": "node scripts/self-audit.ts"
   },
   "license": "MIT",
   "main": "./lib/host/index.mjs",

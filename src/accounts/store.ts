@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path'
 import type { QuotaAccount } from '../quota/scheduler.ts'
 
 export const PROVIDER_IDS = [
-  'mock', 'jimeng', 'tongyi-wanx', 'kling', 'kling-dashscope', 'kling-lipsync', 'doubao', 'comfyui', 'sessionid-http',
+  'mock', 'jimeng', 'tongyi-wanx', 'kling', 'kling-dashscope', 'kling-lipsync', 'doubao', 'doubao-web', 'dashscope-wan', 'comfyui', 'sessionid-http',
 ] as const
 
 export type ProviderId = (typeof PROVIDER_IDS)[number]

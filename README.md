@@ -37,6 +37,7 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 - **Prompt engineering**: parameterized professional template library (character sheet / scene master / single shot) + composable quality boosters (8K / clean bg / neutral face / no text …) + optimizer; `whale_optimize_prompt` upgrades drafts to pro-grade prompts locally
 - **Score-feedback loop (评分回写)**: every reviewed shot writes its score + booster combo back to the scorebook; the optimizer then picks boosters by real historical performance
 - **Preset motion-comic pack**: 5 genres (city comeback / xianxia / suspense / sweet romance / sci-fi) with bilingual character cards, scene cards and shot scripts — `whale_story_presets` turns one preset id into a pipeline-ready script, `scripts/demo-presets.ts` runs it end-to-end with the mock provider (zero keys)
+- **Self-analysis (自我审计)**: `whale_self_audit` tool + `npm run self-audit` scan the repo itself — source modules, test counts, provider matrix, capability inventory and a gap list — and write a generated report to `docs/AUDIT-REPORT.md`; the daily diff of that file IS the progress log. Session lessons are distilled into [docs/RETROSPECTIVE-2026-08-17.md](docs/RETROSPECTIVE-2026-08-17.md)
 
 ## Providers (verified matrix)
 
@@ -62,7 +63,7 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 
 ## DSH integration (deep invocation)
 
-- **Model tools**: `whale_story_presets` (5-genre content pack → pipeline script), `whale_storyboard` (offline shot planning), `whale_generate_video` (provider routing), `whale_optimize_prompt` (pro-grade prompt upgrade), `whale_quality_review` (rule-level QC), `whale_comfyui_workflow` (ComfyUI workflow JSON)
+- **Model tools**: `whale_story_presets` (5-genre content pack → pipeline script), `whale_storyboard` (offline shot planning), `whale_generate_video` (provider routing), `whale_optimize_prompt` (pro-grade prompt upgrade), `whale_quality_review` (rule-level QC), `whale_comfyui_workflow` (ComfyUI workflow JSON), `whale_self_audit` (project self-analysis)
 - **Host routes**: `/dsh-video-studio/health`, `/dsh-video-studio/runs`, `/dsh-video-studio/accounts` (GET list masked / POST add / DELETE remove)
 - **Client UI**: 鲸影 (status) · 鲸影工作台 (live pipeline progress per run) · 鲸影账号 (account vault management) tabs in plugin settings; `whale_generate_video` gets a dedicated video card view
 - Installs via `dsh plugin add`, boot-verified clean
@@ -70,7 +71,7 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 
 ## Verification discipline
 
-101 unit tests green (account pool rotation/backoff/fallback, credential vault, quota routing, prompt merging, score-feedback loop, jianying draft structure, ffmpeg end-to-end render, provider protocols via mock servers incl. kling lip-sync, preset pack integrity, live jimeng model probe, live wanx image generation). Test logs and proof artifacts live in `demos/`.
+110 unit tests green (account pool rotation/backoff/fallback, credential vault, quota routing, prompt merging, score-feedback loop, jianying draft structure, ffmpeg end-to-end render, provider protocols via mock servers incl. kling lip-sync, preset pack integrity, self-audit, live jimeng model probe, live wanx image generation). Test logs and proof artifacts live in `demos/`. The provider matrix lives in `src/selfaudit/matrix.ts` (single source of truth shared by the health route, the vault whitelist and the audit report).
 
 ## Install
 

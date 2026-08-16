@@ -62,12 +62,13 @@
 
 ## 现在能做什么
 
-- 七段流水线、四层提示词合并、额度池调度（退避/降级）、质检重拍（导演喊卡）、评分回写：**101 个单测，全绿**
+- 七段流水线、四层提示词合并、额度池调度（退避/降级）、质检重拍（导演喊卡）、评分回写、自我审计：**110 个单测，全绿**
 - 剪映草稿导出（结构校验器盯着）；ffmpeg 自动剪辑（真实成片、时长校验过）
 - 本地中文配音：macOS `say`，零 key 零费用
 - 无 key 也能跑完整 demo：`node scripts/demo.ts`，成片在 `demos/`
 - **预置漫剧内容包**：5 套题材（都市逆袭/仙侠/悬疑/甜宠/科幻），每套含双语角色卡+场景卡+分镜，`node scripts/demo-presets.ts <id>` 无 key 全链路出片；`whale_story_presets` 工具一键出流水线脚本
-- 真插件：装进 DSH 启动无报错；`/dsh-video-studio/health`、`/runs`、`/accounts` 三个路由在线；六个模型工具（whale_story_presets / whale_storyboard / whale_generate_video / whale_optimize_prompt / whale_quality_review / whale_comfyui_workflow）；设置页「鲸影」+「鲸影工作台」+「鲸影账号」三个 tab
+- **自我分析**：`whale_self_audit` 工具 / `npm run self-audit` 扫描项目自身（源码模块/测试数/供应商矩阵/能力清单/差距清单），自动生成 `docs/AUDIT-REPORT.md`——每天 diff 这份报告就是进度日志；本次会话的踩坑复盘沉淀在 [docs/RETROSPECTIVE-2026-08-17.md](docs/RETROSPECTIVE-2026-08-17.md)
+- 真插件：装进 DSH 启动无报错；`/dsh-video-studio/health`、`/runs`、`/accounts` 三个路由在线；七个模型工具（whale_story_presets / whale_storyboard / whale_generate_video / whale_optimize_prompt / whale_quality_review / whale_comfyui_workflow / whale_self_audit）；设置页「鲸影」+「鲸影工作台」+「鲸影账号」三个 tab
 - 即梦免费档：协议全通，但**文生视频队列长期 SystemBusy**（实测凌晨依然满）——免费策略改为：万相免费文生图出资产图（✅ 实测出真图）→ 即梦图生视频/官方 API 免费额度出视频
 - 通义万相免费文生图：实测出过真图（1.28MB 鲸鱼图在 `demos/`）
 - 可灵官方、可灵百炼、豆包 Seedance、万相视频（DashScope 官方免费额度）四个适配器写好了，手头没 key，还没跑过真实生成
