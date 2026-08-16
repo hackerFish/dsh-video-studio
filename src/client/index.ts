@@ -29,6 +29,27 @@ function Panel({ loadHealth }: { loadHealth: () => Promise<any> }): any {
   )
 }
 
+// 会话内视频卡片：whale_generate_video 工具调用的专属渲染（状态 → 消息 → 可播放视频）
+// 契约：tool.call.toolview 的 keyed 注册，ownerProps = ToolCallOwnerProps（callId/toolName/block/cwd/openFile/inspect）
+function VideoCard(props: any): any {
+  const block = props?.block ?? null
+  // 防御式取值：running 调用或 settled 结果节点（形状以运行时为准，逐层可选链）
+  const args = block?.call?.arguments ?? block?.arguments ?? {}
+  const res = block?.result ?? block?.call?.result ?? null
+  const value = res?.value ?? (typeof res?.content === 'string' ? (() => { try { return JSON.parse(res.content) } catch { return null } })() : null)
+  const message = value?.message ?? ''
+  const url = (message.match(/https?:\/\/[^\s"'<>]+/) ?? [null])[0]
+  const status = value?.status ?? (res?.isError ? 'failed' : 'running')
+  return React.createElement('div', { style: { padding: '8px 0', display: 'flex', flexDirection: 'column', gap: 8 } },
+    React.createElement('div', null,
+      React.createElement('strong', null, '🎬 鲸影生成 '),
+      React.createElement('span', { style: { opacity: 0.75, fontSize: 13 } }, '状态: ' + String(status))),
+    args?.prompt ? React.createElement('div', { style: { fontSize: 13, opacity: 0.85 } }, '提示词: ' + String(args.prompt)) : null,
+    message ? React.createElement('div', { style: { fontSize: 13 } }, message) : null,
+    url ? React.createElement('video', { src: url, controls: true, style: { width: '100%', maxWidth: 420, borderRadius: 8 } }) : null,
+  )
+}
+
 export function apply(ctx: any): void {
   const injected = () => ({
     loadHealth: async () => {
@@ -44,4 +65,8 @@ export function apply(ctx: any): void {
     label: () => '鲸影',
     inject: injected,
   }, Panel))
+  ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
+    name: 'tool.call.toolview',
+    key: 'whale_generate_video',
+  }, VideoCard))
 }
