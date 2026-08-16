@@ -1,4 +1,5 @@
-// Six-stage director pipeline registry. Each stage has a gate: auto / ask / manual (runtime-switchable).
+// 行业公认七段工作流（2026 漫剧/AI 视频标准管线）：
+// 豆包等 LLM 写故事 → 拆剧本 → 出分镜；MJ 出资产主图；图像模型出资产图；Seedance 出视频；剪映成片。
 export type GateMode = 'auto' | 'ask' | 'manual'
 
 export interface Stage {
@@ -8,12 +9,13 @@ export interface Stage {
 }
 
 export const STAGES: Stage[] = [
-  { id: 'parse', name: '解析（角色/场景/剧情）', gate: 'auto' },
-  { id: 'storyboard', name: '剧本与分镜', gate: 'auto' },
-  { id: 'stills', name: '一致性静帧', gate: 'auto' },
-  { id: 'video', name: '视频生成', gate: 'auto' },
-  { id: 'voice', name: '配音与口型', gate: 'auto' },
-  { id: 'final-cut', name: '终剪（字幕/BGM/成片）', gate: 'auto' },
+  { id: 'story', name: '故事（LLM 写小说）', gate: 'auto' },
+  { id: 'script', name: '剧本（LLM 拆剧）', gate: 'auto' },
+  { id: 'storyboard', name: '分镜（LLM 出分镜）', gate: 'auto' },
+  { id: 'master-asset', name: '资产主图（MJ 等出主视觉）', gate: 'auto' },
+  { id: 'shot-assets', name: '资产图（图像模型出变体）', gate: 'auto' },
+  { id: 'video', name: '视频（Seedance/即梦/可灵）', gate: 'auto' },
+  { id: 'final-cut', name: '成片（剪映草稿/ffmpeg）', gate: 'auto' },
 ]
 
 export function setGate(stages: Stage[], id: string, mode: GateMode): Stage[] {
