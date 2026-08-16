@@ -3,6 +3,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mergePromptLayers } from '../prompts/style-dna.ts'
+import { optimizePrompt } from '../prompts/optimizer.ts'
+import { applyTemplate, listTemplates } from '../prompts/templates.ts'
 import type { ProviderStatus } from '../provider.ts'
 import { createJimengProvider } from '../providers/jimeng.ts'
 import { createMockProvider } from '../providers/mock.ts'
@@ -67,7 +69,11 @@ export function registerTools(ctx: any): void {
     execute(args: { outline: string; style?: string; shots?: number }) {
       const shots = splitShots(String(args.outline ?? ''), args.shots ?? 5)
       return Promise.resolve({
-        shots: shots.map((s) => ({ ...s, prompt: mergePromptLayers({ dna: args.style ?? '', manual: '' }).positive || '（未指定风格）' })),
+        shots: shots.map((s) => {
+          const base = mergePromptLayers({ dna: args.style ?? '', manual: '' }).positive
+          const opt = base ? optimizePrompt(base, { style: args.style }) : optimizePrompt('通用画面', { style: args.style })
+          return { ...s, prompt: opt.optimized }
+        }),
       })
     },
   })
@@ -144,6 +150,36 @@ export function registerTools(ctx: any): void {
         finishRun(run.id, 'failed')
         return { ok: false, status: 'failed', message: String(e instanceof Error ? e.message : e).slice(0, 300) }
       }
+    },
+  })
+
+  ctx.tools.register({
+    name: 'whale_optimize_prompt',
+    description: '把草稿提示词优化成专业级（追加 8K/无阴影/中性表情/严禁文字等质量增益，可指定风格与画幅）；也提供专业模板（角色三视图/场景主图/单镜画面）。纯本地，不消耗额度。',
+    parameters: {
+      prompt: { type: 'string', required: true, description: '草稿提示词' },
+      style: { type: 'string', required: false, description: '风格，如"3D 国漫仙侠"' },
+      aspect_ratio: { type: 'string', required: false, enum: ['9:16', '16:9', '1:1'], description: '画幅' },
+      template: { type: 'string', required: false, enum: ['character-sheet', 'scene-master', 'shot-scene'], description: '可选：套用专业模板（角色三视图等）' },
+    },
+    output: {
+      schema: {
+        type: 'object', additionalProperties: false,
+        properties: {
+          optimized: { type: 'string', required: true },
+          appliedBoosters: { type: 'array', required: true, items: { type: 'string' } },
+          templates: { type: 'array', required: true, items: { type: 'object', additionalProperties: false,
+            properties: { id: { type: 'string', required: true }, name: { type: 'string', required: true } } } },
+        },
+      },
+      render: (_args: unknown, value: { optimized: string; appliedBoosters: string[] }) =>
+        [{ type: 'text', text: `已优化（增益 ${value.appliedBoosters.length} 项）：${value.optimized.slice(0, 200)}` }],
+    },
+    execute(args: { prompt: string; style?: string; aspect_ratio?: string; template?: string }) {
+      let draft = String(args.prompt ?? '')
+      if (args.template) draft = applyTemplate(args.template, { description: draft, style: args.style, aspectRatio: args.aspect_ratio })
+      const r = optimizePrompt(draft, { style: args.style, aspectRatio: args.aspect_ratio })
+      return Promise.resolve({ optimized: r.optimized, appliedBoosters: r.appliedBoosters, templates: listTemplates() })
     },
   })
 
