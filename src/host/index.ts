@@ -2,6 +2,7 @@
 // export const name + export function apply(ctx) + webServer route + model tool registration.
 // NOTE: ctx is typed loosely on purpose — DSH runtime types are provided by the profile at load time.
 import { registerTools } from './tools.ts'
+import { listRuns, getRun } from './runs.ts'
 
 export const name = 'dsh-video-studio'
 
@@ -35,5 +36,19 @@ export function apply(ctx: any): void {
         })
       },
     }), 'dsh-video-studio: http route')
+    host.effect(() => host.webServer.register({
+      kind: 'exact',
+      path: '/dsh-video-studio/runs',
+      handler: async (request: any, response: any) => {
+        if (request.method !== 'GET') {
+          response.writeHead(405, { allow: 'GET' })
+          response.end()
+          return
+        }
+        const url = new URL(request.url ?? '/', 'http://localhost')
+        const id = url.searchParams.get('id')
+        sendJson(response, 200, id ? (getRun(id) ?? { ok: false, error: 'run not found' }) : { ok: true, runs: listRuns() })
+      },
+    }), 'dsh-video-studio: runs route')
   })
 }

@@ -50,6 +50,58 @@ function VideoCard(props: any): any {
   )
 }
 
+// 鲸影工作台：六段流水线可视化（轮询 /dsh-video-studio/runs，展示每次生成的阶段进度与事件流）
+const WHALE_STAGE_LABELS: Record<string, string> = {
+  parse: '解析', storyboard: '分镜', stills: '静帧', video: '视频', voice: '配音', 'final-cut': '终剪',
+}
+
+function WorkbenchPanel(_props: any): any {
+  const [doc, setDoc] = React.useState<any>(null)
+  const [error, setError] = React.useState<string | null>(null)
+  React.useEffect(() => {
+    let alive = true
+    const load = () => {
+      fetch('/dsh-video-studio/runs', { cache: 'no-store' })
+        .then((r: any) => r.json())
+        .then((d: any) => { if (alive) setDoc(d) })
+        .catch((e: unknown) => { if (alive) setError(String((e as Error)?.message ?? e)) })
+    }
+    load()
+    const timer = setInterval(load, 3000)
+    return () => { alive = false; clearInterval(timer) }
+  }, [])
+  if (error) return React.createElement('p', { role: 'alert' }, '工作台读取失败: ' + error)
+  if (!doc) return React.createElement('p', { role: 'status' }, '正在读取运行记录…')
+  const runs = doc.runs ?? []
+  return React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
+    React.createElement('h2', null, '鲸影工作台 / Pipeline Workbench'),
+    runs.length === 0
+      ? React.createElement('p', null, '暂无运行记录——在会话里调用 whale_generate_video 后，这里会显示六段流水线进度。')
+      : runs.map((run: any) => {
+          const doneStages = new Set((run.events ?? []).map((e: any) => e.stage))
+          const lastStage = (run.events ?? []).slice(-1)[0]?.stage ?? null
+          return React.createElement('div', { key: run.id, style: { border: '1px solid rgba(0,0,0,.12)', borderRadius: 10, padding: '10px 14px' } },
+            React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 13, opacity: 0.8 } },
+              React.createElement('span', null, '🎬 ' + (run.prompt ?? '').slice(0, 40)),
+              React.createElement('span', null, run.provider + ' · ' + run.status)),
+            React.createElement('div', { style: { display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' } },
+              Object.keys(WHALE_STAGE_LABELS).map((s) => {
+                const done = doneStages.has(s)
+                const current = run.status === 'running' && lastStage === s
+                const style: Record<string, string | number> = {
+                  padding: '4px 10px', borderRadius: 999, fontSize: 12,
+                  background: done ? 'rgba(46,160,67,.15)' : current ? 'rgba(65,118,230,.18)' : 'rgba(0,0,0,.05)',
+                  color: done ? '#2ea043' : current ? '#4176e6' : 'rgba(0,0,0,.45)',
+                }
+                return React.createElement('span', { key: s, style }, (done ? '✓ ' : current ? '◉ ' : '○ ') + WHALE_STAGE_LABELS[s])
+              })),
+            React.createElement('div', { style: { marginTop: 8, fontSize: 12, opacity: 0.7 } },
+              '事件: ' + (run.events ?? []).map((e: any) => e.stage + '.' + e.type).join(' → ')),
+          )
+        }),
+  )
+}
+
 export function apply(ctx: any): void {
   const injected = () => ({
     loadHealth: async () => {
@@ -65,6 +117,13 @@ export function apply(ctx: any): void {
     label: () => '鲸影',
     inject: injected,
   }, Panel))
+  ctx.slots.inject('settings.section', () => ctx.slots.register({
+    name: 'settings.section',
+    id: 'whale-workbench',
+    order: 40,
+    label: () => '鲸影工作台',
+    inject: () => ({}),
+  }, WorkbenchPanel))
   ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
     name: 'tool.call.toolview',
     key: 'whale_generate_video',

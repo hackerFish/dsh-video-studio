@@ -7,6 +7,7 @@ import type { ProviderStatus } from '../provider.ts'
 import { createJimengProvider } from '../providers/jimeng.ts'
 import { createMockProvider } from '../providers/mock.ts'
 import { probeDurationSec } from '../finalcut/render-ffmpeg.ts'
+import { createRun, appendEvent, finishRun } from './runs.ts'
 
 interface WhaleConfig {
   jimengSessionId?: string | null
@@ -100,30 +101,44 @@ export function registerTools(ctx: any): void {
       const dims: Record<string, [number, number]> = { '16:9': [1280, 720], '9:16': [720, 1280], '1:1': [1024, 1024] }
       const [w, h] = dims[aspect] ?? [720, 1280]
       const durationSec = Math.min(Math.max(Number(args.duration_sec) || 5, 3), 5)
+      const run = createRun({ prompt: args.prompt, provider: args.provider ?? 'auto' })
+      appendEvent(run.id, 'parse', 'prompt', args.prompt)
+      appendEvent(run.id, 'storyboard', 'single-shot', { aspect, durationSec })
       if (args.provider === 'mock' || (args.provider === 'auto' && cfg.mock && !cfg.jimengSessionId)) {
         const p = createMockProvider()
         const { jobId } = await p.submit('video', { positive: args.prompt })
+        appendEvent(run.id, 'stills', 'submitted', { jobId, provider: 'mock' })
+        finishRun(run.id, 'done')
         return { ok: true, status: 'submitted', jobId, message: 'mock provider accepted (placeholder output; configure a real provider for actual generation)' }
       }
       if (!cfg.jimengSessionId) {
+        finishRun(run.id, 'failed')
         return { ok: false, status: 'no-provider', message: 'No jimeng sessionid configured: write {"jimengSessionId":"..."} to $DSH_HOME/whale.json. Peak hours may SystemBusy — retry off-peak.' }
       }
       const p = createJimengProvider({ sessionId: cfg.jimengSessionId })
       try {
         const { jobId } = await p.submit('video', { positive: args.prompt, width: w, height: h, durationSec })
+        appendEvent(run.id, 'stills', 'submitted', { jobId, provider: 'jimeng' })
         let st: ProviderStatus = { state: 'running', progress: null }
         for (let i = 0; i < 8; i++) {
           await new Promise((r) => setTimeout(r, 10000))
           st = await p.status(jobId)
+          appendEvent(run.id, 'video', 'polling', { attempt: i + 1, state: st.state })
           if (st.state === 'done' || st.state === 'failed') break
         }
         if (st.state === 'done') {
           const out = await p.fetch(jobId)
+          appendEvent(run.id, 'final-cut', 'done', { url: out.outputs[0] })
+          finishRun(run.id, 'done')
           return { ok: true, status: 'done', jobId, message: `Video ready: ${out.outputs[0]}` }
         }
-        if (st.state === 'failed') return { ok: false, status: 'failed', jobId, message: `Server failed: ${st.error ?? 'unknown'} (free tier SystemBusy at peak consumes 0 credits — retry off-peak)` }
+        if (st.state === 'failed') {
+          finishRun(run.id, 'failed')
+          return { ok: false, status: 'failed', jobId, message: `Server failed: ${st.error ?? 'unknown'} (free tier SystemBusy at peak consumes 0 credits — retry off-peak)` }
+        }
         return { ok: true, status: 'processing', jobId, message: 'Still generating (free tier is slow) — call this tool again to check' }
       } catch (e) {
+        finishRun(run.id, 'failed')
         return { ok: false, status: 'failed', message: String(e instanceof Error ? e.message : e).slice(0, 300) }
       }
     },
