@@ -33,6 +33,7 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 - **Parallel shots**: batch submit → concurrent polling (configurable concurrency)
 - **Quota scheduler**: multi-account free-quota rotation, quality-aware fallback, per-day caps, full audit
 - **Style genome (memory)**: style DNA, shot-template scoring evolution, retry feedback — persists across sessions
+- **Prompt engineering**: parameterized professional template library (character sheet / scene master / single shot) + composable quality boosters (8K / clean bg / neutral face / no text …) + optimizer; `whale_optimize_prompt` upgrades drafts to pro-grade prompts locally
 - **Prompt self-optimization**: A/B → frame scoring → promote (≥4) / retry (≤2) templates
 
 ## Providers (verified matrix)
