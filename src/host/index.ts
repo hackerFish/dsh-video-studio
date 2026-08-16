@@ -30,7 +30,7 @@ export function apply(ctx: any): void {
         sendJson(response, 200, {
           ok: true,
           version: '0.2.0',
-          stages: ['parse', 'storyboard', 'stills', 'video', 'voice', 'final-cut'],
+          stages: ['story', 'script', 'storyboard', 'master-asset', 'shot-assets', 'video', 'final-cut'],
           providers: ['mock', 'jimeng', 'tongyi-wanx', 'kling', 'kling-dashscope', 'doubao', 'comfyui', 'sessionid-http'],
           quotaAccounts: 0,
         })
