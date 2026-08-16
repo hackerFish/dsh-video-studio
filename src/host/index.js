@@ -1,5 +1,7 @@
 // 鲸影 host 入口（结构遵循官方 dsh-global-rules 的同一约定：
-// export const name + export function apply(ctx) + webServer 路由注册）
+// export const name + export function apply(ctx) + webServer 路由注册 + 模型工具注册）
+import { registerTools } from './tools.js'
+
 export const name = 'dsh-video-studio'
 
 function sendJson(response, status, payload) {
@@ -8,6 +10,9 @@ function sendJson(response, status, payload) {
 }
 
 export function apply(ctx) {
+  ctx.inject(['tools'], (toolsCtx) => {
+    registerTools(toolsCtx)
+  }, 'dsh-video-studio: tools')
   ctx.inject(['webServer'], (host) => {
     host.effect(() => host.webServer.register({
       kind: 'exact',
