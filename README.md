@@ -45,6 +45,7 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 | kling via DashScope | `sk-` key | ✅ adapter written — not yet tested against a real key |
 | **wan video via DashScope (通义万相视频)** | `sk-` key, official free quota | ✅ adapter written (same async protocol as kling) — model id to confirm on first real key |
 | doubao (火山方舟) | ARK API key | ✅ Seedance video + **Seedream image** (assets) — not yet tested against a real key |
+| **doubao-web (豆包网页版)** | cookie, free web quota | ✅ **live-replayed & parsed**: SSE chat for the LLM stages (story/script/shots) + image bot for assets. Pro-tier free quota runs on a 7-day window (image bot pauses when spent; text keeps working) |
 | ComfyUI local | workflow JSON builder + /prompt protocol | ✅ protocol-tested (mock server), real GPU pending |
 | kling web (sessionid) | anti-bot one-time falcon token | 📄 anatomy documented; automation needs a capture bridge (deferred) |
 
