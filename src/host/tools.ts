@@ -168,6 +168,7 @@ export function registerTools(ctx: any): void {
         properties: {
           optimized: { type: 'string', required: true },
           appliedBoosters: { type: 'array', required: true, items: { type: 'string' } },
+          negative: { type: 'array', required: true, items: { type: 'string' } },
           templates: { type: 'array', required: true, items: { type: 'object', additionalProperties: false,
             properties: { id: { type: 'string', required: true }, name: { type: 'string', required: true } } } },
         },
@@ -179,7 +180,7 @@ export function registerTools(ctx: any): void {
       let draft = String(args.prompt ?? '')
       if (args.template) draft = applyTemplate(args.template, { description: draft, style: args.style, aspectRatio: args.aspect_ratio })
       const r = optimizePrompt(draft, { style: args.style, aspectRatio: args.aspect_ratio })
-      return Promise.resolve({ optimized: r.optimized, appliedBoosters: r.appliedBoosters, templates: listTemplates() })
+      return Promise.resolve({ optimized: r.optimized, appliedBoosters: r.appliedBoosters, negative: r.negative, templates: listTemplates() })
     },
   })
 
