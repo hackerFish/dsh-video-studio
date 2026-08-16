@@ -94,7 +94,8 @@ export async function runPipeline({
 
   const shots = script?.shots ?? []
   if (!shots.length) throw new Error('脚本缺少 shots')
-  emit('parse', 'shots', shots.length)
+  emit('story', 'script', shots.length)
+  emit('script', 'shots', shots.length)
 
   const boards = shots.map((s, i) => ({
     index: i,
@@ -135,17 +136,18 @@ export async function runPipeline({
         running++
         void (async () => {
           try {
+            if (s.b.index === 0) emit('master-asset', 'primary', s.b.index)
             if (s.provider.id === 'mock') {
               await runFfmpeg(['-y', '-f', 'lavfi', '-i', `color=c=0x1d5a9e:s=${W}x${H}:d=1`, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-t', '1', s.still])
-              emit('stills', 'mock', s.b.index)
+              emit('shot-assets', 'mock', s.b.index)
             } else {
-              const { jobId } = await s.provider.submit('stills', { positive: s.b.prompt.positive, negative: s.b.prompt.negative, width: W, height: H })
+              const { jobId } = await s.provider.submit('shot-assets', { positive: s.b.prompt.positive, negative: s.b.prompt.negative, width: W, height: H })
               s.jobId = jobId
-              emit('stills', 'submitted', { shot: s.b.index, jobId, provider: s.provider.id })
+              emit('shot-assets', 'submitted', { shot: s.b.index, jobId, provider: s.provider.id })
             }
             submitted.push(s)
           } catch (e) {
-            emit('stills', 'submit-error', { shot: s.b.index, error: String(e instanceof Error ? e.message : e) })
+            emit('shot-assets', 'submit-error', { shot: s.b.index, error: String(e instanceof Error ? e.message : e) })
             throw e
           } finally {
             running--
@@ -187,7 +189,7 @@ export async function runPipeline({
             negative = [negative, ...review.issues.map((i) => `（避免：${i}）`)].filter(Boolean).join(' ')
             const { jobId } = await s.provider.submit('stills', { positive: s.b.prompt.positive, negative, width: W, height: H })
             s.jobId = jobId
-            emit('stills', 'resubmitted', { shot: s.b.index, jobId, retries })
+            emit('shot-assets', 'resubmitted', { shot: s.b.index, jobId, retries })
             continue
           }
         }
@@ -203,13 +205,13 @@ export async function runPipeline({
   for (const s of slots) {
     const b = s.b
     if (opts.voice !== false && sayAvailable()) {
-      if (await ok('voice')) {
+      {
         const vp = `${workDir}/line${b.index}.aiff`
         const vmp = `${workDir}/line${b.index}.mp3`
         await sayTts({ text: b.line, outPath: vp })
         await runFfmpeg(['-y', '-i', vp, '-ac', '1', vmp])
         s.voice = vmp
-        emit('voice', 'done', b.index)
+        emit('final-cut', 'voice', b.index)
       }
     }
     const vDur = s.voice ? await probeDurationSec(s.voice) : b.durationSec
