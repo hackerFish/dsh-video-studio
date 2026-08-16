@@ -3,7 +3,7 @@
 // NOTE: ctx is typed loosely on purpose — DSH runtime types are provided by the profile at load time.
 import { registerTools } from './tools.ts'
 import { listRuns, getRun } from './runs.ts'
-import { CredentialStore } from '../accounts/store.ts'
+import { CredentialStore, maskCredential } from '../accounts/store.ts'
 
 export const name = 'dsh-video-studio'
 
@@ -96,7 +96,9 @@ export function apply(ctx: any): void {
               id: typeof body.id === 'string' && body.id ? body.id : undefined,
             }
             const account = vault().add(input)
-            sendJson(response, 200, { ok: true, account: { ...account, credentialHint: account.credential.slice(0, 3) + '••••' + account.credential.slice(-3) } })
+            const { credential: _secret, ...masked } = account
+            void _secret
+            sendJson(response, 200, { ok: true, account: { ...masked, credentialHint: maskCredential(account.credential) } })
             return
           }
           if (request.method === 'DELETE') {

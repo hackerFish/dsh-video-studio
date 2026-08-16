@@ -89,6 +89,21 @@ test('脱敏边界：短凭据全遮，空串返回空', () => {
   assert.equal(maskCredential('abcdefg'), 'abc••••efg')
 })
 
+test('DSH_HOME 优先：未显式指定目录时落在 $DSH_HOME/.whale', () => {
+  const dir = tmp()
+  const prev = process.env.DSH_HOME
+  process.env.DSH_HOME = dir
+  try {
+    const store = CredentialStore.open()
+    store.add({ provider: 'mock', credential: 'x1', id: 'iso' })
+    assert.ok(store.file.startsWith(join(dir, '.whale')), store.file)
+    assert.equal(statSync(store.file).isFile(), true)
+  } finally {
+    process.env.DSH_HOME = prev
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test('makeAccountId 唯一且合法', () => {
   const seen = new Set<string>()
   for (let i = 0; i < 500; i++) {

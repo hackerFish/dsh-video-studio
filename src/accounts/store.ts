@@ -82,9 +82,11 @@ export class CredentialStore {
     this.data = data
   }
 
-  /** Load an existing vault or create an empty one (dir 0700, file 0600). */
-  static open(dir = join(homedir(), '.whale'), name = 'whale.json'): CredentialStore {
-    const file = join(dir, name)
+  /** Load an existing vault or create an empty one (dir 0700, file 0600).
+   *  Default dir follows DSH_HOME (so lab profiles stay isolated) then ~/.whale. */
+  static open(dir?: string, name = 'whale.json'): CredentialStore {
+    const defaultDir = process.env.DSH_HOME ? join(process.env.DSH_HOME, '.whale') : join(homedir(), '.whale')
+    const file = join(dir ?? defaultDir, name)
     if (existsSync(file)) {
       try {
         const parsed = JSON.parse(readFileSync(file, 'utf8')) as Partial<VaultFile>
@@ -98,8 +100,9 @@ export class CredentialStore {
         throw new Error(`whale.json 读取失败: ${e instanceof Error ? e.message : e}`)
       }
     }
-    mkdirSync(dir, { recursive: true, mode: 0o700 })
-    try { chmodSync(dir, 0o700) } catch { /* non-posix */ }
+    const dirPath = dirname(file)
+    mkdirSync(dirPath, { recursive: true, mode: 0o700 })
+    try { chmodSync(dirPath, 0o700) } catch { /* non-posix */ }
     const store = new CredentialStore(file, { version: 1, accounts: [], poolState: [] })
     store.persist()
     return store
