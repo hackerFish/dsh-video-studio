@@ -14,12 +14,13 @@ export default defineConfig([
   },
   {
     entry: { 'client/index': 'src/client/index.ts' },
-    format: ['esm'],
+    format: ['cjs'],
     outDir: 'lib',
     outExtension: () => ({ js: '.js' }),
     platform: 'browser',
     target: 'es2022',
     bundle: true,
+    external: ['react', 'react-dom', 'react/jsx-runtime'],
     sourcemap: false,
   },
 ])
