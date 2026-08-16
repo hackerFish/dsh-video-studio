@@ -55,7 +55,7 @@ export function apply(ctx: any): void {
           ok: true,
           version: '0.2.0',
           stages: ['story', 'script', 'storyboard', 'master-asset', 'shot-assets', 'video', 'final-cut'],
-          providers: ['mock', 'jimeng', 'tongyi-wanx', 'kling', 'kling-dashscope', 'doubao', 'comfyui', 'sessionid-http'],
+          providers: ['mock', 'jimeng', 'tongyi-wanx', 'kling', 'kling-dashscope', 'kling-lipsync', 'doubao', 'comfyui', 'sessionid-http'],
           quotaAccounts: store ? store.list().length : 0,
         })
       },

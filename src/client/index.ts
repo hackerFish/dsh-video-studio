@@ -109,6 +109,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   'tongyi-wanx': '通义万相',
   kling: '可灵官方',
   'kling-dashscope': 'DashScope 视频',
+  'kling-lipsync': '可灵对口型',
   doubao: '豆包 Seedance/Seedream',
   comfyui: 'ComfyUI 本地',
   'sessionid-http': 'sessionid 通用',
