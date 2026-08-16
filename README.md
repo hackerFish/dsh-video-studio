@@ -6,14 +6,18 @@
 
 > The DSH ecosystem has 1000+ plugins — none does generative video. Whale brings the industry-validated motion-comic pipeline (waoowaoo / LumenX / MangaV / ArcReel pattern) into DSH as a hot-pluggable, per-step-controllable plugin.
 
-## Pipeline (every stage has auto / ask / manual gates)
+## Pipeline — the industry-standard seven-stage workflow
 
 ```
-script → ① parse (characters/scenes) → ② storyboard (shot prompts, 4-layer prompt engine)
-       → ③ stills (consistency images) → ④ video (provider routing + quota scheduling)
-       → ⑤ voiceover (local macOS `say`, Chinese voices, zero-key) → ⑥ final cut
-       → distribution pack (Douyin/Kuaishou/Bilibili/Xiaohongshu adapters)
+story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
+→ storyboard (LLM shot list) → master asset (MJ-style hero image)
+→ shot assets (image-model variations for consistency) → video (Seedance/Jimeng/Kling)
+→ final cut (JianYing draft export / local ffmpeg render)
 ```
+
+- **The first three stages are LLM stages**: inside DSH the session model itself (Doubao/DeepSeek/anything) does them — the agent is the brain; the plugin supplies the rest.
+- Every stage has a gate: auto / ask / manual.
+- Parallel shots, quota scheduler, style genome, distribution pack as before.
 
 - **Parallel shots**: batch submit → concurrent polling (configurable concurrency)
 - **Quota scheduler**: multi-account free-quota rotation, quality-aware fallback, per-day caps, full audit
@@ -24,7 +28,7 @@ script → ① parse (characters/scenes) → ② storyboard (shot prompts, 4-lay
 
 | Provider | Channel | Status |
 |---|---|---|
-| jimeng (即梦) | sessionid, free daily quota | ✅ protocol verified end-to-end; free tier peaks with `SystemBusy` (0 credits consumed) — retry off-peak |
+| jimeng (即梦) | sessionid, free daily quota | ✅ protocol verified end-to-end; **text-to-video queue stays `SystemBusy` even off-peak (0 credits consumed)** — free route is now: wanx images → image-to-video |
 | tongyi-wanx (通义万相) | cookie+xsrf, free credits | ✅ **live-verified: real whale image generated & downloaded** (free tier = text-to-image; video needs membership) |
 | kling official (可灵) | accessKey:secretKey JWT, api-beijing.klingai.com | ✅ adapter written — not yet tested against a real key |
 | kling via DashScope | `sk-` key | ✅ adapter written — not yet tested against a real key |
