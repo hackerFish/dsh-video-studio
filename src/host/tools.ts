@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { mergePromptLayers } from '../prompts/style-dna.ts'
 import { optimizePrompt } from '../prompts/optimizer.ts'
 import { applyTemplate, listTemplates } from '../prompts/templates.ts'
+import { buildWorkflow, validateWorkflow } from '../director/workflow-builder.ts'
 import type { ProviderStatus } from '../provider.ts'
 import { createJimengProvider } from '../providers/jimeng.ts'
 import { createMockProvider } from '../providers/mock.ts'
@@ -150,6 +151,39 @@ export function registerTools(ctx: any): void {
         finishRun(run.id, 'failed')
         return { ok: false, status: 'failed', message: String(e instanceof Error ? e.message : e).slice(0, 300) }
       }
+    },
+  })
+
+  ctx.tools.register({
+    name: 'whale_comfyui_workflow',
+    description: '把提示词/规格生成 ComfyUI workflow JSON（本地引擎的输入，纯离线）。默认模板是结构占位（需按你的节点包填 checkpoint 与采样节点名），校验器会指出未替换的占位。',
+    parameters: {
+      prompt: { type: 'string', required: true, description: '画面提示词' },
+      width: { type: 'integer', required: false, description: '默认 1080' },
+      height: { type: 'integer', required: false, description: '默认 1920' },
+      frames: { type: 'integer', required: false, description: '帧数，默认 121' },
+      fps: { type: 'integer', required: false, description: '默认 24' },
+      checkpoint: { type: 'string', required: false, description: 'checkpoint 名（不填则占位待替换）' },
+    },
+    output: {
+      schema: {
+        type: 'object', additionalProperties: false,
+        properties: {
+          workflow: { type: 'object', required: true, additionalProperties: true },
+          issues: { type: 'array', required: true, items: { type: 'string' } },
+          note: { type: 'string', required: true },
+        },
+      },
+      render: (_args: unknown, value: { workflow: Record<string, unknown>; issues: string[] }) =>
+        [{ type: 'text', text: `Workflow 已生成：${Object.keys(value.workflow).length} 个节点，${value.issues.length} 个待替换占位。` }],
+    },
+    execute(args: { prompt: string; width?: number; height?: number; frames?: number; fps?: number; checkpoint?: string }) {
+      const wf = buildWorkflow({
+        positive: args.prompt, width: args.width ?? 1080, height: args.height ?? 1920,
+        frames: args.frames ?? 121, fps: args.fps ?? 24, checkpoint: args.checkpoint,
+      })
+      const issues = validateWorkflow(wf)
+      return Promise.resolve({ workflow: wf, issues, note: '默认模板为结构占位：按你安装的节点包替换 checkpoint 与视频采样节点；模板可放入 templates/comfyui/ 复用。' })
     },
   })
 
