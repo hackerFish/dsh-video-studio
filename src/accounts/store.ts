@@ -175,27 +175,24 @@ export class CredentialStore {
     return account
   }
 
-  /** Pool rows with credential attached by id — ready for AccountPool construction. */
+  /** 池账号 = 保险库账号为底座，池状态行覆盖（新账号无状态行时以全新状态入池）。 */
   loadPool(): QuotaAccount[] {
-    const byId = new Map(this.data.accounts.map((a) => [a.id, a]))
-    return this.data.poolState
-      .map((r) => {
-        const stored = byId.get(r.id)
-        if (!stored) return null
-        const account: QuotaAccount = {
-          id: r.id,
-          provider: stored.provider,
-          credential: stored.credential,
-          dailyQuota: stored.dailyQuota,
-          qualityTier: stored.qualityTier,
-          usedToday: r.usedToday,
-          lastUsedAt: r.lastUsedAt,
-          health: r.health,
-          disabled: r.disabled,
-        }
-        return account
-      })
-      .filter((a): a is QuotaAccount => a !== null)
+    const stateById = new Map(this.data.poolState.map((r) => [r.id, r]))
+    return this.data.accounts.map((stored) => {
+      const r = stateById.get(stored.id)
+      const account: QuotaAccount = {
+        id: stored.id,
+        provider: stored.provider,
+        credential: stored.credential,
+        dailyQuota: stored.dailyQuota,
+        qualityTier: stored.qualityTier,
+        usedToday: r?.usedToday,
+        lastUsedAt: r?.lastUsedAt,
+        health: r?.health,
+        disabled: r?.disabled,
+      }
+      return account
+    })
   }
 
   /** Persist pool snapshot (usage/health only; credentials stay in the vault section). */

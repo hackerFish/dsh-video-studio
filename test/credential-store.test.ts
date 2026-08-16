@@ -104,6 +104,20 @@ test('DSH_HOME 优先：未显式指定目录时落在 $DSH_HOME/.whale', () => 
   }
 })
 
+test('新账号无状态行时以全新状态入池（UI 添加后立即可被调度）', () => {
+  const dir = tmp()
+  try {
+    const store = CredentialStore.open(dir)
+    store.add({ provider: 'jimeng', credential: 's1', id: 'fresh' })
+    const pool = store.loadPool()
+    assert.equal(pool.length, 1)
+    assert.equal(pool[0]?.id, 'fresh')
+    assert.equal(pool[0]?.credential, 's1')
+    assert.equal(pool[0]?.usedToday ?? 0, 0)
+    assert.equal(pool[0]?.health ?? null, null)
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
 test('makeAccountId 唯一且合法', () => {
   const seen = new Set<string>()
   for (let i = 0; i < 500; i++) {

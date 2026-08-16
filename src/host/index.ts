@@ -3,8 +3,9 @@
 // NOTE: ctx is typed loosely on purpose — DSH runtime types are provided by the profile at load time.
 import { registerTools } from './tools.ts'
 import { listRuns, getRun } from './runs.ts'
-import { CredentialStore, maskCredential } from '../accounts/store.ts'
+import { maskCredential } from '../accounts/store.ts'
 import { providerIds } from '../selfaudit/matrix.ts'
+import { runtimeVault, invalidatePool } from './runtime.ts'
 
 export const name = 'dsh-video-studio'
 
@@ -37,12 +38,8 @@ export function apply(ctx: any): void {
     registerTools(toolsCtx)
   }, 'dsh-video-studio: tools')
   ctx.inject(['webServer'], (host: any) => {
-    // Lazy vault: first account API hit opens ~/.whale/whale.json (boot stays failure-free).
-    let store: CredentialStore | null = null
-    const vault = (): CredentialStore => {
-      if (!store) store = CredentialStore.open()
-      return store
-    }
+    // 保险库与账号池走 runtime 单例：路由和工具共用一个实例。
+    const vault = runtimeVault
     host.effect(() => host.webServer.register({
       kind: 'exact',
       path: '/dsh-video-studio/health',
@@ -52,12 +49,14 @@ export function apply(ctx: any): void {
           response.end()
           return
         }
+        let quotaAccounts = 0
+        try { quotaAccounts = vault().list().length } catch { /* vault 不可读时保持 health 存活 */ }
         sendJson(response, 200, {
           ok: true,
           version: '0.2.0',
           stages: ['story', 'script', 'storyboard', 'master-asset', 'shot-assets', 'video', 'final-cut'],
           providers: providerIds(),
-          quotaAccounts: store ? store.list().length : 0,
+          quotaAccounts,
         })
       },
     }), 'dsh-video-studio: http route')
@@ -97,6 +96,7 @@ export function apply(ctx: any): void {
               id: typeof body.id === 'string' && body.id ? body.id : undefined,
             }
             const account = vault().add(input)
+            invalidatePool()
             const { credential: _secret, ...masked } = account
             void _secret
             sendJson(response, 200, { ok: true, account: { ...masked, credentialHint: maskCredential(account.credential) } })
@@ -104,7 +104,9 @@ export function apply(ctx: any): void {
           }
           if (request.method === 'DELETE') {
             const id = url.searchParams.get('id') ?? ''
-            sendJson(response, 200, { ok: vault().remove(id), id })
+            const removed = vault().remove(id)
+            if (removed) invalidatePool()
+            sendJson(response, 200, { ok: removed, id })
             return
           }
           response.writeHead(405, { allow: 'GET, POST, DELETE' })

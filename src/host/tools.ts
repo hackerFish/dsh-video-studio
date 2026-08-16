@@ -8,6 +8,8 @@ import { applyTemplate, listTemplates } from '../prompts/templates.ts'
 import { buildWorkflow, validateWorkflow } from '../director/workflow-builder.ts'
 import { listStoryPresets, getStoryPreset, presetToScript } from '../content/presets.ts'
 import { buildAudit } from '../selfaudit/audit.ts'
+import { runtimePool, persistPool } from './runtime.ts'
+import { providerForAccount } from './account-providers.ts'
 import type { ProviderStatus } from '../provider.ts'
 import { createJimengProvider } from '../providers/jimeng.ts'
 import { createMockProvider } from '../providers/mock.ts'
@@ -83,12 +85,12 @@ export function registerTools(ctx: any): void {
 
   ctx.tools.register({
     name: 'whale_generate_video',
-    description: 'Submit a video generation task (jimeng free tier / mock; more providers on the way). Peak hours may return SystemBusy (0 credits consumed) — retry off-peak.',
+    description: 'Submit a video generation task through the account pool (鲸影账号 tab 里登记的凭证自动按额度轮换/失败退避；也支持 env 兜底)。jimeng 免费档高峰 SystemBusy（0 扣费）——换时段重试。',
     parameters: {
       prompt: { type: 'string', required: true, description: 'Video prompt' },
       aspect_ratio: { type: 'string', required: false, enum: ['16:9', '9:16', '1:1'], description: 'Default 9:16' },
       duration_sec: { type: 'integer', required: false, description: '3-5 seconds (free tier max 5), default 5' },
-      provider: { type: 'string', required: false, enum: ['auto', 'mock', 'jimeng'], description: 'Default auto (jimeng when a sessionid is configured)' },
+      provider: { type: 'string', required: false, enum: ['auto', 'mock', 'jimeng', 'kling', 'kling-dashscope', 'dashscope-wan', 'kling-lipsync', 'doubao', 'doubao-web', 'comfyui', 'tongyi-wanx'], description: 'Default auto = 账号池里的 jimeng 账号；指定供应商则从池里挑该家的健康账号' },
     },
     output: {
       schema: {
@@ -97,11 +99,12 @@ export function registerTools(ctx: any): void {
           ok: { type: 'boolean', required: true },
           status: { type: 'string', required: true },
           jobId: { type: 'string', required: false },
+          account: { type: 'string', required: false },
           message: { type: 'string', required: true },
         },
       },
-      render: (_args: unknown, value: { ok: boolean; status: string; jobId?: string; message: string }) =>
-        [{ type: 'text', text: value.ok ? `Task ${value.jobId ?? ''} ${value.status}: ${value.message}` : `Generation failed: ${value.message}` }],
+      render: (_args: unknown, value: { ok: boolean; status: string; jobId?: string; account?: string; message: string }) =>
+        [{ type: 'text', text: value.ok ? `Task ${value.jobId ?? ''} ${value.status}${value.account ? ` (账号 ${value.account})` : ''}: ${value.message}` : `Generation failed: ${value.message}` }],
     },
     timeoutMs: 130000,
     async execute(args: { prompt: string; aspect_ratio?: string; duration_sec?: number; provider?: string }) {
@@ -114,7 +117,9 @@ export function registerTools(ctx: any): void {
       appendEvent(run.id, 'story', 'prompt', args.prompt)
       appendEvent(run.id, 'script', 'prompt', args.prompt)
       appendEvent(run.id, 'storyboard', 'single-shot', { aspect, durationSec })
-      if (args.provider === 'mock' || (args.provider === 'auto' && cfg.mock && !cfg.jimengSessionId)) {
+
+      const wantMock = args.provider === 'mock' || (args.provider === 'auto' && cfg.mock && !cfg.jimengSessionId)
+      if (wantMock) {
         const p = createMockProvider()
         const { jobId } = await p.submit('video', { positive: args.prompt })
         appendEvent(run.id, 'master-asset', 'primary', 0)
@@ -122,9 +127,63 @@ export function registerTools(ctx: any): void {
         finishRun(run.id, 'done')
         return { ok: true, status: 'submitted', jobId, message: 'mock provider accepted (placeholder output; configure a real provider for actual generation)' }
       }
+
+      // 1) 账号池路径：鲸影账号 tab 登记的凭证
+      try {
+        const target = args.provider === 'auto' ? 'jimeng' : String(args.provider)
+        const pool = runtimePool()
+        const picked = pool.pick(target)
+        if (picked.account && picked.reason === 'ok') {
+          const accountId = picked.account.id
+          const p = providerForAccount(picked.account)
+          try {
+            const { jobId } = await p.submit('video', { positive: args.prompt, width: w, height: h, durationSec })
+            pool.charge(accountId)
+            appendEvent(run.id, 'master-asset', 'primary', 0)
+            appendEvent(run.id, 'shot-assets', 'submitted', { jobId, provider: p.id, account: accountId })
+            let st: ProviderStatus = { state: 'running', progress: null }
+            for (let i = 0; i < 8; i++) {
+              await new Promise((r) => setTimeout(r, 10000))
+              st = await p.status(jobId)
+              appendEvent(run.id, 'video', 'polling', { attempt: i + 1, state: st.state })
+              if (st.state === 'done' || st.state === 'failed') break
+            }
+            if (st.state === 'done') {
+              const out = await p.fetch(jobId)
+              pool.recordSuccess(accountId)
+              appendEvent(run.id, 'final-cut', 'done', { url: out.outputs[0] })
+              finishRun(run.id, 'done')
+              persistPool()
+              return { ok: true, status: 'done', jobId, account: accountId, message: `Video ready: ${out.outputs[0]}` }
+            }
+            if (st.state === 'failed') {
+              pool.recordFailure(accountId, st.error)
+              finishRun(run.id, 'failed')
+              persistPool()
+              return { ok: false, status: 'failed', jobId, account: accountId, message: `Server failed: ${st.error ?? 'unknown'}（该账号已进入冷却，池会自动换下一个）` }
+            }
+            pool.recordSuccess(accountId)
+            persistPool()
+            return { ok: true, status: 'processing', jobId, account: accountId, message: 'Still generating — call this tool again to check' }
+          } catch (e) {
+            pool.recordFailure(accountId, e instanceof Error ? e.message : String(e))
+            persistPool()
+            throw e
+          }
+        }
+        if (picked.reason !== 'none') {
+          finishRun(run.id, 'failed')
+          return { ok: false, status: 'no-account', message: `账号池里没有可用的 ${target} 账号（${picked.reason}）——到设置页「鲸影账号」添加，或等冷却结束` }
+        }
+      } catch (e) {
+        finishRun(run.id, 'failed')
+        return { ok: false, status: 'failed', message: String(e instanceof Error ? e.message : e).slice(0, 300) }
+      }
+
+      // 2) env 兜底：无账号池时的旧路径（DSH_JIMENG_SESSIONID / $DSH_HOME/whale.json）
       if (!cfg.jimengSessionId) {
         finishRun(run.id, 'failed')
-        return { ok: false, status: 'no-provider', message: 'No jimeng sessionid configured: write {"jimengSessionId":"..."} to $DSH_HOME/whale.json. Peak hours may SystemBusy — retry off-peak.' }
+        return { ok: false, status: 'no-provider', message: '没有可用供应商：到设置页「鲸影账号」添加凭证，或写 {"jimengSessionId":"..."} 到 $DSH_HOME/whale.json' }
       }
       const p = createJimengProvider({ sessionId: cfg.jimengSessionId })
       try {

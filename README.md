@@ -32,7 +32,8 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 - **Consistency asset library**: character/scene master assets + per-shot variations with automatic reference-image injection into prompts (the motion-comic standard technique)
 - **Parallel shots**: batch submit → concurrent polling (configurable concurrency)
 - **Account pool (quota scheduler)**: multi-account rotation per provider, per-day caps, exponential backoff on failure, automatic fallback re-submit to the next healthy account mid-pipeline, full audit trail
-- **Credential vault**: `~/.whale/whale.json` (0600, atomic writes), masked API responses, account management UI in the plugin settings (鲸影账号 tab)
+- **Credential vault**: `~/.whale/whale.json` (0600, atomic writes, follows `$DSH_HOME`), masked API responses, account management UI in the plugin settings (鲸影账号 tab)
+- **Runtime account wiring**: accounts added in the UI feed straight into `whale_generate_video` — vault → pool pick (rotation/backoff) → per-account provider binding (`src/host/account-providers.ts`, single-field credentials as plain strings, multi-field as JSON) → usage/health persisted back to the vault
 - **Style genome (memory)**: style DNA, shot-template scoring evolution, retry feedback — persists across sessions
 - **Prompt engineering**: parameterized professional template library (character sheet / scene master / single shot) + composable quality boosters (8K / clean bg / neutral face / no text …) + optimizer; `whale_optimize_prompt` upgrades drafts to pro-grade prompts locally
 - **Score-feedback loop (评分回写)**: every reviewed shot writes its score + booster combo back to the scorebook; the optimizer then picks boosters by real historical performance
@@ -71,7 +72,7 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 
 ## Verification discipline
 
-110 unit tests green (account pool rotation/backoff/fallback, credential vault, quota routing, prompt merging, score-feedback loop, jianying draft structure, ffmpeg end-to-end render, provider protocols via mock servers incl. kling lip-sync, preset pack integrity, self-audit, live jimeng model probe, live wanx image generation). Test logs and proof artifacts live in `demos/`. The provider matrix lives in `src/selfaudit/matrix.ts` (single source of truth shared by the health route, the vault whitelist and the audit report).
+116 unit tests green (account pool rotation/backoff/fallback, credential vault, runtime account→provider wiring, quota routing, prompt merging, score-feedback loop, jianying draft structure, ffmpeg end-to-end render, provider protocols via mock servers incl. kling lip-sync, preset pack integrity, self-audit, live jimeng model probe, live wanx image generation). Test logs and proof artifacts live in `demos/`. The provider matrix lives in `src/selfaudit/matrix.ts` (single source of truth shared by the health route, the vault whitelist and the audit report).
 
 ## Install
 

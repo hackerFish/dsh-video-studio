@@ -2,7 +2,7 @@
 
 > **English abstract**: This doc distills a 7-hour overnight build session (quota pool, credential vault, kling lip-sync adapter, preset pack, docs) into ten numbered rules. Each rule: symptom → root cause → rule → where it lands in the repo. Rule 11 covers the self-audit mechanism this doc feeds.
 
-复盘对象：2026-08-17 凌晨 01:55–02:30 的会话（6 个 commit：账号池、凭证保险库、对口型、内容包、文档、安全修复）。
+复盘对象：2026-08-17 凌晨 01:55–02:30 的会话（6 个 commit：账号池、凭证保险库、对口型、内容包、文档、安全修复），以及随后 02:30–02:45 的第二阶段（自我审计机制 + 运行时账号接线）。
 目标：把"今晚怎么错的、怎么修的"沉淀成**规则**，写进代码与文档，让后来的会话和未来的自己不再重踩。
 
 ---
@@ -92,6 +92,13 @@
 - **规则**：用**最小隔离 profile**（`.lab-home2`：只挂 dsh-base + dsh-web-app + whale 本体，`file:link` 到仓库）起真实例，curl 全部路由做 round-trip；改 host 后必跑。
 - **落点**：本会话真机验证抓到规则 4、规则 5 两个 bug——这条规则当晚就回了本。
 
+### 规则 11：派生状态必须有"新条目默认路径"
+
+- **现象**：UI 添加账号后，工具调用的账号池永远为空（pick 返回 none）——账号明明进了 vault。
+- **根因**：`loadPool()` 只从持久化的 poolState 行重建，没有给"从未被调度的新账号"提供种子路径。
+- **规则**：任何"列表 → 派生状态"的加载函数，**以列表为底座、状态为覆盖层**；新条目以全新状态入列。测试必须覆盖"新条目无历史状态"这一用例。
+- **落点**：`src/accounts/store.ts` 的 `loadPool()`（账号为底座 + poolState 覆盖）+ `test/credential-store.test.ts` 的新账号用例；真机验证"UI POST → 池 pick → 构造供应商 → 提交"全链路。
+
 ## 三、这些教训如何留在项目里：自我分析机制
 
 复盘不能只写这一次，**要让项目自己会写**：
@@ -103,6 +110,7 @@
 2. **`scripts/self-audit.ts`** —— 执行审计并把报告**写进** `docs/AUDIT-REPORT.md`（带生成时间戳的自动生成文件）。
 3. **`whale_self_audit` 工具** —— 在会话里让模型直接调用：返回审计 JSON + 报告摘要，模型据此做差距分析。
 4. **差距清单** —— 审计里固化的 `gaps`：口型同步真实调用、官方 key 通道实测、长片 demo、账号 UI 人眼验证、推广位——每天早上看一眼就知道下一步。
+5. **运行时接线**（第二阶段完成）—— UI 账号 → vault → 账号池 → 按账号构造供应商 → 额度/健康回写，`whale_generate_video` 已全程走池。
 
 一句话回答"能做到自我分析并且编写吗"：**能**——`scripts/self-audit.ts` 是"自我分析"，它生成的 `docs/AUDIT-REPORT.md` 是"编写"，两者都进 git 历史，每天的差距变化可 diff。
 
