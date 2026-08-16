@@ -8,6 +8,28 @@ test('缺 apiKey 拒绝创建', () => {
   assert.throws(() => createDoubaoProvider({}), /apiKey/)
 })
 
+test('豆包 Seedream 文生图（资产图阶段, mock 服务器）', async () => {
+  let sawPath = ''
+  const server = createServer((req, res) => {
+    sawPath = req.url ?? ''
+    if (sawPath === '/images/generations' && req.method === 'POST') {
+      res.end(JSON.stringify({ data: [{ url: 'https://cdn.example.com/seedream.png' }] }))
+      return
+    }
+    res.statusCode = 404; res.end()
+  })
+  await new Promise<void>((r) => { server.listen(0, '127.0.0.1', () => r()) })
+  const port = (server.address() as AddressInfo).port
+  try {
+    const p = createDoubaoProvider({ apiKey: 'k', baseUrl: `http://127.0.0.1:${port}` })
+    const { jobId } = await p.submit('shot-assets', { positive: '鲸鱼角色图' })
+    assert.match(jobId, /^https:\/\//)
+    assert.equal((await p.status(jobId)).state, 'done')
+    const out = await p.fetch(jobId)
+    assert.equal(out.outputs[0], 'https://cdn.example.com/seedream.png')
+  } finally { await new Promise((r) => server.close(() => r())) }
+})
+
 test('Seedance 协议：submit/status/fetch + Bearer 鉴权（mock 服务器）', async () => {
   let sawAuth = null
   let status = 'queued'
