@@ -6,6 +6,7 @@ import { mergePromptLayers } from '../prompts/style-dna.ts'
 import { optimizePrompt } from '../prompts/optimizer.ts'
 import { applyTemplate, listTemplates } from '../prompts/templates.ts'
 import { buildWorkflow, validateWorkflow } from '../director/workflow-builder.ts'
+import { listStoryPresets, getStoryPreset, presetToScript } from '../content/presets.ts'
 import type { ProviderStatus } from '../provider.ts'
 import { createJimengProvider } from '../providers/jimeng.ts'
 import { createMockProvider } from '../providers/mock.ts'
@@ -215,6 +216,49 @@ export function registerTools(ctx: any): void {
       if (args.template) draft = applyTemplate(args.template, { description: draft, style: args.style, aspectRatio: args.aspect_ratio })
       const r = optimizePrompt(draft, { style: args.style, aspectRatio: args.aspect_ratio })
       return Promise.resolve({ optimized: r.optimized, appliedBoosters: r.appliedBoosters, negative: r.negative, templates: listTemplates() })
+    },
+  })
+
+  ctx.tools.register({
+    name: 'whale_story_presets',
+    description: '预置漫剧内容包：5 套题材（都市逆袭/仙侠/悬疑/甜宠/科幻）的完整故事卡（角色+场景+分镜）。不传 preset_id 列清单，传 preset_id 产出可直接喂给流水线的分镜脚本。纯本地。',
+    parameters: {
+      preset_id: { type: 'string', required: false, description: '题材 id（不传则返回清单）' },
+    },
+    output: {
+      schema: {
+        type: 'object', additionalProperties: false,
+        properties: {
+          presets: { type: 'array', required: true, items: { type: 'object', additionalProperties: false,
+            properties: {
+              id: { type: 'string', required: true },
+              title: { type: 'string', required: true },
+              titleEn: { type: 'string', required: true },
+              genre: { type: 'string', required: true },
+              hook: { type: 'string', required: true },
+              shotCount: { type: 'integer', required: true },
+              characterCount: { type: 'integer', required: true },
+            } } },
+          script: { type: 'object', required: false, additionalProperties: false,
+            properties: {
+              title: { type: 'string', required: true },
+              shots: { type: 'array', required: true, items: { type: 'object', additionalProperties: false,
+                properties: {
+                  line: { type: 'string', required: true },
+                  prompt: { type: 'string', required: true },
+                  durationSec: { type: 'integer', required: false },
+                } } },
+            } },
+        },
+      },
+      render: (_args: unknown, value: { presets: unknown[]; script?: { title: string; shots: unknown[] } | null }) =>
+        [{ type: 'text', text: value.script ? `《${value.script.title}》分镜 ${value.script.shots.length} 条已生成，可直接喂 whale_storyboard / 流水线。` : `内容包共 ${value.presets.length} 套题材，传 preset_id 生成分镜脚本。` }],
+    },
+    execute(args: { preset_id?: string }) {
+      if (!args.preset_id) return Promise.resolve({ presets: listStoryPresets(), script: null })
+      const preset = getStoryPreset(String(args.preset_id))
+      if (!preset) throw new Error(`未知题材: ${args.preset_id}（可选 ${listStoryPresets().map((p) => p.id).join('/')}）`)
+      return Promise.resolve({ presets: listStoryPresets(), script: presetToScript(preset) })
     },
   })
 
