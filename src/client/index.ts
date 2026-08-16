@@ -117,10 +117,12 @@ export function apply(ctx: any): void {
     label: () => '鲸影',
     inject: injected,
   }, Panel))
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section',
+  // 注意：工作台注册在 settings.plugins.tab（与 dsh-recommend 同一先例），
+  // settings.section 契约只接受 {id,order,label}，多传 inject 会被严格插槽拒绝。
+  ctx.slots.inject('settings.plugins.tab', () => ctx.slots.register({
+    name: 'settings.plugins.tab',
     id: 'whale-workbench',
-    order: 40,
+    order: 31,
     label: () => '鲸影工作台',
     inject: () => ({}),
   }, WorkbenchPanel))
