@@ -7,6 +7,7 @@ import { sayTts, sayAvailable } from '../voice/say-tts.ts'
 import { pickAccount, recordUsage, type QuotaAccount } from '../quota/scheduler.ts'
 import { mergePromptLayers } from '../prompts/style-dna.ts'
 import { STAGES, gatesOf, type GateMode } from './stages.ts'
+import { reviewShot, shouldRetry, type Reviewer } from '../quality/review.ts'
 import type { Provider } from '../provider.ts'
 
 export interface ScriptShot {
@@ -42,6 +43,10 @@ export interface PipelineOptions {
     pollIntervalMs?: number
     maxPollMs?: number
     concurrency?: number
+    /** 注入 LLM 评审（导演喊卡）；≤2 分自动带负面词重拍 */
+    reviewer?: Reviewer | null
+    /** 每个镜头最多重拍次数（默认 2） */
+    maxRetries?: number
   }
   gates?: Partial<Record<string, GateMode>>
   ask?: (stage: string) => Promise<boolean> | boolean
@@ -155,7 +160,10 @@ export async function runPipeline({
 
   const realJobs = submitted.filter((s) => s.jobId)
   const deadline = Date.now() + maxPollMs
+  const maxRetries = opts.maxRetries ?? 2
   const pollOne = async (s: ShotSlot): Promise<void> => {
+    let retries = 0
+    let negative = s.b.prompt.negative
     while (Date.now() < deadline) {
       const st = await s.provider.status(s.jobId as string)
       if (st.state === 'failed') throw new Error(`镜头 ${s.b.index} 生成失败: ${st.error ?? ''}`)
@@ -170,6 +178,19 @@ export async function runPipeline({
           await runFfmpeg(['-y', '-i', url, '-t', String(s.b.durationSec), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', s.still])
         }
         emit('video', 'done', { shot: s.b.index, src: url })
+        // 导演喊卡：注入评审时，≤2 分且未用尽重试 → 带负面词重拍
+        if (opts.reviewer) {
+          const review = await reviewShot({ videoPath: s.still, shotPrompt: s.b.prompt.positive, reviewer: opts.reviewer, workDir: `${workDir}/review${s.b.index}-${retries}` })
+          emit('review', review.score === null ? 'rules' : review.retry ? 'retry' : review.promote ? 'promote' : 'accept', { shot: s.b.index, score: review.score, issues: review.issues })
+          if (shouldRetry(review.score, retries, maxRetries)) {
+            retries++
+            negative = [negative, ...review.issues.map((i) => `（避免：${i}）`)].filter(Boolean).join(' ')
+            const { jobId } = await s.provider.submit('stills', { positive: s.b.prompt.positive, negative, width: W, height: H })
+            s.jobId = jobId
+            emit('stills', 'resubmitted', { shot: s.b.index, jobId, retries })
+            continue
+          }
+        }
         return
       }
       await new Promise((r) => setTimeout(r, pollIntervalMs))
