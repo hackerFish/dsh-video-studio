@@ -14,7 +14,7 @@ export async function runPipeline({
   script,                     // { title, shots: [{ line, prompt?, durationSec? }] }
   providers = [],             // 供应商实例（mock/sessionid-*/comfyui）
   accounts = [],              // 额度账号（可为空：路由落到 providers[0]）
-  opts = {},                  // { width,height,styleDna,shotTemplate,preferCost,subtitles,voice }
+  opts = {},                  // { width,height,styleDna,shotTemplate,preferCost,subtitles,voice,pollIntervalMs,maxPollMs,concurrency }
   gates = {},                 // { stills:'auto', video:'auto', voice:'auto', 'final-cut':'auto', ... }
   ask = async () => true,     // gate==='ask' 时调用；返回 false 中止该段
   onEvent = () => {},
@@ -41,10 +41,15 @@ export async function runPipeline({
   }))
   emit('storyboard', 'boards', boards.length)
 
-  // ③ 逐镜：供应商路由 + 额度调度 + 静帧/视频 + 配音
+  // ③ 并行分镜引擎：先对全部镜头做供应商路由 + 额度调度 + 批量提交，再并发轮询。
+  // 并发数 opts.concurrency（sessionid 免费档建议 1-2，云 API 可更高）。
   const tl = createTimeline({ width: W, height: H })
   const audit = { accounts: [], decisions: [] }
-  let t = 0
+  const pollIntervalMs = opts.pollIntervalMs ?? 5000
+  const maxPollMs = opts.maxPollMs ?? 10 * 60 * 1000
+  const concurrency = opts.concurrency ?? 2
+
+  const slots = []
   for (const b of boards) {
     if (!(await ok('stills'))) { emit('stills', 'halted', b.index); break }
     const { account, reason } = pickAccount(accounts, { preferCost: opts.preferCost ?? true })
@@ -56,52 +61,87 @@ export async function runPipeline({
     const provider = providers.find((p) => p.id === account?.provider) ?? providers[0]
     if (!provider) throw new Error(`镜头 ${b.index}: 无可用供应商（providers 为空且无账号路由）`)
     audit.decisions.push({ shot: b.index, provider: provider.id, account: account?.id ?? null, reason })
+    slots.push({ b, provider, still: `${workDir}/shot${b.index}.mp4`, jobId: null, voice: null })
+  }
 
-    const still = `${workDir}/shot${b.index}.mp4`
-    if (provider.id === 'mock') {
-      // mock：本地占位静帧，保证无 key 链路可完整跑通
-      await runFfmpeg(['-y', '-f', 'lavfi', '-i', `color=c=0x1d5a9e:s=${W}x${H}:d=1`, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-t', '1', still])
-      emit('stills', 'mock', b.index)
-    } else {
-      const { jobId } = await provider.submit('stills', { positive: b.prompt.positive, negative: b.prompt.negative, width: W, height: H })
-      emit('stills', 'submitted', { shot: b.index, jobId, provider: provider.id })
-      let done = false
-      for (let p = 0; p < 60 && !done; p++) {
-        await new Promise((r) => setTimeout(r, 2000))
-        const st = await provider.status(jobId)
-        if (st.state === 'failed') throw new Error(`镜头 ${b.index} 生成失败: ${st.error ?? ''}`)
-        if (st.state === 'done') done = true
+  // 批量提交（并发受控）
+  let running = 0
+  const queue = [...slots]
+  const submitted = []
+  await new Promise((resolveAll) => {
+    const pump = () => {
+      while (running < concurrency && queue.length) {
+        const s = queue.shift()
+        running++
+        ;(async () => {
+          try {
+            if (s.provider.id === 'mock') {
+              await runFfmpeg(['-y', '-f', 'lavfi', '-i', `color=c=0x1d5a9e:s=${W}x${H}:d=1`, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-t', '1', s.still])
+              emit('stills', 'mock', s.b.index)
+            } else {
+              const { jobId } = await s.provider.submit('stills', { positive: s.b.prompt.positive, negative: s.b.prompt.negative, width: W, height: H })
+              s.jobId = jobId
+              emit('stills', 'submitted', { shot: s.b.index, jobId, provider: s.provider.id })
+            }
+            submitted.push(s)
+          } catch (e) {
+            emit('stills', 'submit-error', { shot: s.b.index, error: String(e?.message ?? e) })
+            throw e
+          } finally {
+            running--
+            pump()
+          }
+        })()
       }
-      if (!done) throw new Error(`镜头 ${b.index} 生成超时`)
-      const out = await provider.fetch(jobId)
-      const url = out.outputs[0]
-      if (!url) throw new Error(`镜头 ${b.index} 无输出`)
-      if (/^https?:/.test(url)) {
-        const res = await fetch(url)
-        await writeFile(still, Buffer.from(await res.arrayBuffer()))
-      } else {
-        // 本地路径直接引用
-        await runFfmpeg(['-y', '-i', url, '-t', String(b.durationSec), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', still])
-      }
-      emit('video', 'done', { shot: b.index, src: url })
+      if (!running && !queue.length) resolveAll()
     }
+    pump()
+  })
 
-    // ④ voice
-    let voice = null
+  // 并发轮询非 mock 任务
+  const realJobs = submitted.filter((s) => s.jobId)
+  const deadline = Date.now() + maxPollMs
+  const pollOne = async (s) => {
+    while (Date.now() < deadline) {
+      const st = await s.provider.status(s.jobId)
+      if (st.state === 'failed') throw new Error(`镜头 ${s.b.index} 生成失败: ${st.error ?? ''}`)
+      if (st.state === 'done') {
+        const out = await s.provider.fetch(s.jobId)
+        const url = out.outputs[0]
+        if (!url) throw new Error(`镜头 ${s.b.index} 无输出`)
+        if (/^https?:/.test(url)) {
+          const res = await fetch(url)
+          await writeFile(s.still, Buffer.from(await res.arrayBuffer()))
+        } else {
+          await runFfmpeg(['-y', '-i', url, '-t', String(s.b.durationSec), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', s.still])
+        }
+        emit('video', 'done', { shot: s.b.index, src: url })
+        return
+      }
+      await new Promise((r) => setTimeout(r, pollIntervalMs))
+    }
+    throw new Error(`镜头 ${s.b.index} 生成超时`)
+  }
+  await Promise.all(realJobs.map((s) => pollOne(s)))
+
+  // ④ voice + 组装时间线（配音与终剪前的本地处理）
+  let t = 0
+  for (const s of slots) {
+    const b = s.b
     if (opts.voice !== false && sayAvailable()) {
       if (await ok('voice')) {
         const vp = `${workDir}/line${b.index}.aiff`
         const vmp = `${workDir}/line${b.index}.mp3`
         await sayTts({ text: b.line, outPath: vp })
         await runFfmpeg(['-y', '-i', vp, '-ac', '1', vmp])
-        voice = vmp
+        s.voice = vmp
         emit('voice', 'done', b.index)
       }
     }
-    const vDur = voice ? await probeDurationSec(voice) : b.durationSec
+    const vDur = s.voice ? await probeDurationSec(s.voice) : b.durationSec
     const clipDur = Math.round((vDur + 1.2) * 1e6)
-    addClip(tl, { src: still, durationUs: clipDur })
-    if (voice) addAudio(tl, { src: voice, startUs: t + 400_000, durationUs: Math.round(vDur * 1e6), volume: 1 })
+    addClip(tl, { src: s.still, durationUs: clipDur })
+    if (s.voice) addAudio(tl, { src: s.voice, startUs: t + 400_000, durationUs: Math.round(vDur * 1e6), volume: 1 })
     addSubtitle(tl, { text: b.line, startUs: t + 200_000, durationUs: Math.round((vDur + 0.8) * 1e6) })
     t += clipDur
   }
