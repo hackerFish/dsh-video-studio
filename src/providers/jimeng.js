@@ -116,13 +116,22 @@ export function createJimengProvider({ sessionId, timeoutMs = 60000, fetchImpl =
     },
     async poll(jobId) {
       const j = await req('POST', '/mweb/v1/get_history_by_ids', { history_ids: [jobId] })
+      const entry = j?.data?.[String(jobId)] ?? j?.history_list?.[0] ?? null
       const raw = JSON.stringify(j)
       const url = raw.match(VIDEO_URL_RE)?.[0] ?? null
-      const list = j?.history_list ?? []
-      const item = list[0] ?? null
-      const videoUrl = url ?? item?.video?.url ?? item?.video_url ?? (item?.item_list?.find((x) => x?.video?.url)?.video?.url ?? null)
-      const status = item?.status ?? (url ? 30 : 20)
-      return { state: videoUrl ? 'done' : status === 30 ? 'done' : 'running', progress: null, videoUrl, rawItem: item }
+      // 成品地址也可能出现在 item_list / draft_content / 其它嵌套（域名为 vlabvod 等 CDN）
+      const videoUrl = url
+        ?? entry?.item_list?.find((x) => x?.item_urls || x?.video?.url)?.['item_urls']?.[0]
+        ?? entry?.item_list?.[0]?.video?.url
+        ?? entry?.video_url
+        ?? null
+      // 失败条目（SystemBusy 等）：result_msg 见 gen_result_data
+      const failed = entry?.failed_item_list?.[0]?.gen_result_data ?? null
+      const status = entry?.task?.status ?? entry?.status ?? (videoUrl ? 30 : 20)
+      if (videoUrl) return { state: 'done', progress: 1, videoUrl, rawItem: entry }
+      if (failed?.result_msg) return { state: 'failed', progress: 1, error: String(failed.result_msg), retryable: failed.result_msg === 'SystemBusy', rawItem: entry }
+      if (status === 30) return { state: 'done', progress: 1, videoUrl: null, rawItem: entry } // 完成但地址未提取（需人工查看原始条目）
+      return { state: 'running', progress: null, rawItem: entry }
     },
     async status(jobId) {
       const p = await this.poll(jobId)
