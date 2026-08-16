@@ -2,7 +2,7 @@
 // 协议来源：社区网关（jimeng-free-api-all）对官网 API 的反推 + 本机真实 sessionid 实测校准。
 // 凭证：sessionid 通过环境变量/配置传入，绝不落盘、绝不提交。
 import { randomUUID } from 'node:crypto'
-import { assertProvider } from '../provider.js'
+import { assertProvider } from '../provider.ts'
 
 const BASE = 'https://jimeng.jianying.com'
 // 模型 key 会随官网轮换：默认取当前已知，可在 submit spec.modelKey 覆盖；探测脚本见 scripts/probe-jimeng-model.mjs

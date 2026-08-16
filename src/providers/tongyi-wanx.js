@@ -9,7 +9,7 @@
 //   - 凭证: Cookie(含 login_aliyunid_ticket/WANX_CN_SESSION) + x-xsrf-token + x-wan-uid + x-platform:web
 //   - 提交需要 bx-ua（阿里风控签名，抓包获取，分钟内可回放；过期后重新抓包）；查询不需要
 //   - 免费档只开放文生图（视频需会员）→ 定位：漫剧"一致性静帧"供应商
-import { assertProvider } from '../provider.js'
+import { assertProvider } from '../provider.ts'
 
 const BASE = 'https://wanx.biz.aliyun.com/wanx/api'
 

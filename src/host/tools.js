@@ -2,7 +2,7 @@
 // 注册契约逐字段对照官方 dsh-tool-todo 的实现（name/description/parameters/output.schema/output.render/execute）。
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { mergePromptLayers } from '../prompts/style-dna.js'
+import { mergePromptLayers } from '../prompts/style-dna.ts'
 import { createJimengProvider } from '../providers/jimeng.js'
 import { createMockProvider } from '../providers/mock.js'
 import { probeDurationSec } from '../finalcut/render-ffmpeg.js'

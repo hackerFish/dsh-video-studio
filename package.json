@@ -29,5 +29,10 @@
     ".": "./src/host/index.js",
     "./client": "./src/client/index.js",
     "./package.json": "./package.json"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "tsup": "^8.5.1",
+    "typescript": "^7.0.2"
   }
 }

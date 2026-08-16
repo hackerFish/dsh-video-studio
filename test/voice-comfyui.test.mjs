@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { sayAvailable, sayTts } from '../src/voice/say-tts.js'
 import { createComfyUIProvider } from '../src/providers/comfyui.js'
-import { buildWorkflow, validateWorkflow, DEFAULT_TEMPLATE } from '../src/director/workflow-builder.js'
+import { buildWorkflow, validateWorkflow, DEFAULT_TEMPLATE } from '../src/director/workflow-builder.ts'
 
 test('workflow 构建：变量替换 + 未替换占位可被校验器抓住', () => {
   const wf = buildWorkflow({ checkpoint: 'wan2.1.safetensors', positive: '国风，深海底，鲸鱼', seed: 42 })

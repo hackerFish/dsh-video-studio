@@ -3,12 +3,12 @@
 // 每段发出事件；gate=ask 时通过 ask 回调征求用户决定；全部决策进入审计记录。
 import { mkdirSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
-import { createTimeline, addClip, addSubtitle, addAudio } from '../finalcut/timeline.js'
+import { createTimeline, addClip, addSubtitle, addAudio } from '../finalcut/timeline.ts'
 import { renderTimeline, runFfmpeg, probeDurationSec } from '../finalcut/render-ffmpeg.js'
 import { sayTts, sayAvailable } from '../voice/say-tts.js'
-import { pickAccount, recordUsage } from '../quota/scheduler.js'
-import { mergePromptLayers } from '../prompts/style-dna.js'
-import { STAGES, gatesOf } from './stages.js'
+import { pickAccount, recordUsage } from '../quota/scheduler.ts'
+import { mergePromptLayers } from '../prompts/style-dna.ts'
+import { STAGES, gatesOf } from './stages.ts'
 
 export async function runPipeline({
   script,                     // { title, shots: [{ line, prompt?, durationSec? }] }

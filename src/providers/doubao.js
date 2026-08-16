@@ -2,7 +2,7 @@
 // 端点：https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks（OpenAI 兼容面）
 // 任务：POST 创建 → GET /tasks/{id} 轮询（queued/running/succeeded/failed）→ content.video_url
 // 凭证：ARK_API_KEY（火山方舟控制台创建，UUID 格式）；新用户有免费体验额度。
-import { assertProvider } from '../provider.js'
+import { assertProvider } from '../provider.ts'
 
 const DEFAULT_BASE = 'https://ark.cn-beijing.volces.com/api/v3'
 const MODELS = ['doubao-seedance-2-0-fast-260128', 'doubao-seedance-2-0-260128']

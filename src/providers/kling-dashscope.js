@@ -1,7 +1,7 @@
 // 可灵官方 API（阿里云百炼 DashScope 通道，2026-08 官方文档形态）。
 // 异步任务式：POST video-synthesis(X-DashScope-Async: enable) → 轮询 GET /api/v1/tasks/{task_id}。
 // 凭证：DASHSCOPE_API_KEY（百炼控制台创建），新用户有免费体验额度；官方通道稳定，无网页免费档的拥堵。
-import { assertProvider } from '../provider.js'
+import { assertProvider } from '../provider.ts'
 
 const DEFAULT_BASE = 'https://dashscope.aliyuncs.com'
 

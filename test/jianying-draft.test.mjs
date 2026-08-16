@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createTimeline, addClip, addSubtitle, addAudio, totalDurationUs } from '../src/finalcut/timeline.js'
+import { createTimeline, addClip, addSubtitle, addAudio, totalDurationUs } from '../src/finalcut/timeline.ts'
 import { buildDraftContent, buildDraftMeta, validateDraft, writeDraft } from '../src/finalcut/jianying-draft.js'
 
 const US = 1_000_000

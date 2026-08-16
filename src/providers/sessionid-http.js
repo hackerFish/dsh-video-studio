@@ -3,7 +3,7 @@
 // 端点采用「社区记载」的已知形态，首轮真实 sessionid 实测后再固化为各平台的正式配置；
 // 本实现全部可配置，测试用 mock 服务器做协议级验证。
 import { randomUUID } from 'node:crypto'
-import { assertProvider } from '../provider.js'
+import { assertProvider } from '../provider.ts'
 
 // 平台预设（端点标记 UNVERIFIED 的部分待真实 sessionid 实测后确认）
 export const SESSIONID_PRESETS = {

@@ -3,7 +3,7 @@
 // 任务：POST /v1/videos/text2video → 轮询 GET /v1/videos/text2video/{task_id}（submitted/processing/succeed/failed）。
 // 凭证格式 "accessKey:secretKey"，由可灵开放平台控制台创建；不落盘、不提交。
 import { createHmac } from 'node:crypto'
-import { assertProvider } from '../provider.js'
+import { assertProvider } from '../provider.ts'
 
 const DEFAULT_BASE = 'https://api-beijing.klingai.com'
 const DEFAULT_MODEL = 'kling-v2-6'

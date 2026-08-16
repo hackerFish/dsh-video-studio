@@ -1,6 +1,6 @@
 // mock 供应商：无 key 时跑通全链路的占位实现。
 // 产出占位静帧（纯色 PNG，由 ffmpeg 生成，见 director/stages 的说明），任务即完成。
-import { assertProvider } from '../provider.js'
+import { assertProvider } from '../provider.ts'
 
 let counter = 0
 const jobs = new Map()

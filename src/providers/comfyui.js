@@ -1,7 +1,7 @@
 // ComfyUI 本地供应商：通过官方 HTTP API（/prompt → /history → /view）驱动本地 ComfyUI。
 // 无 GPU/无 ComfyUI 时 health() 返回不可用，调度器会自动降级到其它供应商。
 import { randomUUID } from 'node:crypto'
-import { assertProvider } from '../provider.js'
+import { assertProvider } from '../provider.ts'
 
 export function createComfyUIProvider({ baseUrl = 'http://127.0.0.1:8188', timeoutMs = 30000 } = {}) {
   const api = async (path, opts = {}) => {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync, existsSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createTimeline, addClip, addSubtitle, addAudio, totalDurationUs } from '../src/finalcut/timeline.js'
+import { createTimeline, addClip, addSubtitle, addAudio, totalDurationUs } from '../src/finalcut/timeline.ts'
 import { locateFfmpeg, runFfmpeg, probeDurationSec, renderTimeline } from '../src/finalcut/render-ffmpeg.js'
 
 const hasFfmpeg = locateFfmpeg() !== null
