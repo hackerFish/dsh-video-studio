@@ -26,9 +26,9 @@ script → ① parse (characters/scenes) → ② storyboard (shot prompts, 4-lay
 |---|---|---|
 | jimeng (即梦) | sessionid, free daily quota | ✅ protocol verified end-to-end; free tier peaks with `SystemBusy` (0 credits consumed) — retry off-peak |
 | tongyi-wanx (通义万相) | cookie+xsrf, free credits | ✅ **live-verified: real whale image generated & downloaded** (free tier = text-to-image; video needs membership) |
-| kling official (可灵) | accessKey:secretKey JWT, api-beijing.klingai.com | ✅ adapter ready, awaiting key |
-| kling via DashScope | `sk-` key | ✅ adapter ready, awaiting key |
-| doubao/Seedance (火山方舟) | ARK API key | ✅ adapter ready, awaiting key |
+| kling official (可灵) | accessKey:secretKey JWT, api-beijing.klingai.com | ✅ adapter written — not yet tested against a real key |
+| kling via DashScope | `sk-` key | ✅ adapter written — not yet tested against a real key |
+| doubao/Seedance (火山方舟) | ARK API key | ✅ adapter written — not yet tested against a real key |
 | ComfyUI local | workflow JSON builder + /prompt protocol | ✅ protocol-tested (mock server), real GPU pending |
 | kling web (sessionid) | anti-bot one-time falcon token | 📄 anatomy documented; automation needs a capture bridge (deferred) |
 

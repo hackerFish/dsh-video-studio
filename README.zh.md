@@ -46,20 +46,17 @@
 - **热拔插**：插件本身 `dsh plugin add` 即装即用；供应商与流水线阶段运行时热切换，不重启
 - 详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
-## 状态（诚实）
+## 现在能做什么
 
-- ✅ 架构骨架 + 额度调度器 + 提示词合并逻辑（含单元测试）
-- ✅ 剪映草稿生成器（通道 A）+ 结构校验器
-- ✅ **ffmpeg 全自动渲染器（通道 B）+ 真实端到端验证**：合成素材→时间线→字幕烧录→混音→成片，时长校验通过
-- ✅ **ComfyUI 供应商（本地引擎）**：/prompt→/history→/view 协议 + mock 服务器级验证 + 导演层 workflow JSON 生成器
-- ✅ **本地中文 TTS**：macOS say 适配（零 key 真配音）
-- ✅ **无 key 全自动样片**：三镜剧本→静帧→中文配音→字幕烧录→BGM→成片，[demo 成片](demos/whale-demo.mp4)（14.2s，运行 `node scripts/demo.mjs` 复现）
-- ✅ **真插件验证**：干净 profile 安装 + 启动 0 报错 + `/dsh-video-studio/health` 路由在线
-- ✅ mock 供应商（无 key 也可端到端跑通"分镜→剪辑"链路验证）
-
-> 测试总计 23 个单测全绿（含真实 ffmpeg 渲染、真实 say 配音、ComfyUI mock 协议）
-- ⏳ 真实供应商适配（等你提供任意一家 sessionid/key 后验证）
-- ⏳ 六段流水线逐段落地（见 ROADMAP）
+- 分镜、提示词四层合并、多账号额度调度、质检重拍（导演喊卡）：**47 个单测，全绿**
+- 剪映草稿导出（结构校验器盯着）；ffmpeg 自动剪辑（真实成片、时长校验过）
+- 本地中文配音：macOS `say`，零 key 零费用
+- 无 key 也能跑完整 demo：`node scripts/demo.ts`，成片在 `demos/`
+- 真插件：装进 DSH 启动无报错；`/dsh-video-studio/health` 在线；三个模型工具（whale_storyboard / whale_generate_video / whale_quality_review）；设置页「鲸影」+「鲸影工作台」
+- 即梦免费档：协议全通（高峰 SystemBusy 不扣额度，错峰重试就行）
+- 通义万相免费文生图：实测出过真图（1.28MB 鲸鱼图在 `demos/`）
+- 可灵官方、可灵百炼、豆包 Seedance 三个适配器写好了，手头没 key，还没跑过真实生成
+- 可灵网页版：反爬是一次性令牌，协议已存档，自动化需要抓包桥——先搁着
 
 ## 安装
 
