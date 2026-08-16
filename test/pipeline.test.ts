@@ -19,7 +19,7 @@ test('流水线端到端：六段事件齐全 + 额度审计 + gate 中止生效
       workDir: dir,
     })
     const stages = [...new Set(events.map((e) => e.stage))]
-    for (const s of ['parse', 'storyboard', 'stills', 'final-cut']) assert.ok(stages.includes(s), stages.join(','))
+    for (const s of ['story', 'script', 'storyboard', 'shot-assets', 'final-cut']) assert.ok(stages.includes(s), stages.join(','))
     assert.ok(existsSync(r.outPath))
     assert.equal(r.audit.decisions[0].account, 'a1')
     assert.equal(r.audit.accounts[0].reason, 'ok')
