@@ -1,0 +1,4 @@
+# dsh bundle patch: 将鲸影插入 profile 层栈（结构同官方 bundle）
+- insert:
+    - id: dsh-video-studio
+      name: '@hackerfish/dsh-video-studio'

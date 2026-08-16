@@ -50,8 +50,14 @@
 
 - ✅ 架构骨架 + 额度调度器 + 提示词合并逻辑（含单元测试）
 - ✅ 剪映草稿生成器（通道 A）+ 结构校验器
-- ✅ **ffmpeg 全自动渲染器（通道 B）+ 真实端到端验证**：合成素材→时间线→字幕烧录→混音→成片，时长校验通过（20 单测全绿）
+- ✅ **ffmpeg 全自动渲染器（通道 B）+ 真实端到端验证**：合成素材→时间线→字幕烧录→混音→成片，时长校验通过
+- ✅ **ComfyUI 供应商（本地引擎）**：/prompt→/history→/view 协议 + mock 服务器级验证 + 导演层 workflow JSON 生成器
+- ✅ **本地中文 TTS**：macOS say 适配（零 key 真配音）
+- ✅ **无 key 全自动样片**：三镜剧本→静帧→中文配音→字幕烧录→BGM→成片，[demo 成片](demos/whale-demo.mp4)（14.2s，运行 `node scripts/demo.mjs` 复现）
+- ✅ **真插件验证**：干净 profile 安装 + 启动 0 报错 + `/dsh-video-studio/health` 路由在线
 - ✅ mock 供应商（无 key 也可端到端跑通"分镜→剪辑"链路验证）
+
+> 测试总计 23 个单测全绿（含真实 ffmpeg 渲染、真实 say 配音、ComfyUI mock 协议）
 - ⏳ 真实供应商适配（等你提供任意一家 sessionid/key 后验证）
 - ⏳ 六段流水线逐段落地（见 ROADMAP）
 

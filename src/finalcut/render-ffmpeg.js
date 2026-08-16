@@ -50,12 +50,13 @@ export async function probeDurationSec(src) {
 }
 
 const FONT_CANDIDATES = [
+  '/System/Library/Fonts/Supplemental/Songti.ttc',   // macOS 宋体（CJK）
   '/System/Library/Fonts/PingFang.ttc',
   '/System/Library/Fonts/STHeiti Light.ttc',
   '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
 ]
 
-function pickFont() {
+export function pickFont() {
   return FONT_CANDIDATES.find((f) => existsSync(f)) ?? null
 }
 
