@@ -19,6 +19,7 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 - Every stage has a gate: auto / ask / manual.
 - Parallel shots, quota scheduler, style genome, distribution pack as before.
 
+- **Consistency asset library**: character/scene master assets + per-shot variations with automatic reference-image injection into prompts (the motion-comic standard technique)
 - **Parallel shots**: batch submit → concurrent polling (configurable concurrency)
 - **Quota scheduler**: multi-account free-quota rotation, quality-aware fallback, per-day caps, full audit
 - **Style genome (memory)**: style DNA, shot-template scoring evolution, retry feedback — persists across sessions
@@ -32,6 +33,7 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 | tongyi-wanx (通义万相) | cookie+xsrf, free credits | ✅ **live-verified: real whale image generated & downloaded** (free tier = text-to-image; video needs membership) |
 | kling official (可灵) | accessKey:secretKey JWT, api-beijing.klingai.com | ✅ adapter written — not yet tested against a real key |
 | kling via DashScope | `sk-` key | ✅ adapter written — not yet tested against a real key |
+| **wan video via DashScope (通义万相视频)** | `sk-` key, official free quota | ✅ adapter written (same async protocol as kling) — model id to confirm on first real key |
 | doubao/Seedance (火山方舟) | ARK API key | ✅ adapter written — not yet tested against a real key |
 | ComfyUI local | workflow JSON builder + /prompt protocol | ✅ protocol-tested (mock server), real GPU pending |
 | kling web (sessionid) | anti-bot one-time falcon token | 📄 anatomy documented; automation needs a capture bridge (deferred) |
