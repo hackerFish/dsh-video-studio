@@ -11,10 +11,23 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
     }
   },
   "files": [
     "src/host",
     "cordis.patch.yml"
-  ]
+  ],
+  "exports": {
+    ".": "src/host/index.js",
+    "./client": "./src/client/index.js",
+    "./package.json": "./package.json"
+  }
 }
