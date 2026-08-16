@@ -102,12 +102,14 @@ export function registerTools(ctx: any): void {
       const [w, h] = dims[aspect] ?? [720, 1280]
       const durationSec = Math.min(Math.max(Number(args.duration_sec) || 5, 3), 5)
       const run = createRun({ prompt: args.prompt, provider: args.provider ?? 'auto' })
-      appendEvent(run.id, 'parse', 'prompt', args.prompt)
+      appendEvent(run.id, 'story', 'prompt', args.prompt)
+      appendEvent(run.id, 'script', 'prompt', args.prompt)
       appendEvent(run.id, 'storyboard', 'single-shot', { aspect, durationSec })
       if (args.provider === 'mock' || (args.provider === 'auto' && cfg.mock && !cfg.jimengSessionId)) {
         const p = createMockProvider()
         const { jobId } = await p.submit('video', { positive: args.prompt })
-        appendEvent(run.id, 'stills', 'submitted', { jobId, provider: 'mock' })
+        appendEvent(run.id, 'master-asset', 'primary', 0)
+        appendEvent(run.id, 'shot-assets', 'submitted', { jobId, provider: 'mock' })
         finishRun(run.id, 'done')
         return { ok: true, status: 'submitted', jobId, message: 'mock provider accepted (placeholder output; configure a real provider for actual generation)' }
       }
@@ -118,7 +120,8 @@ export function registerTools(ctx: any): void {
       const p = createJimengProvider({ sessionId: cfg.jimengSessionId })
       try {
         const { jobId } = await p.submit('video', { positive: args.prompt, width: w, height: h, durationSec })
-        appendEvent(run.id, 'stills', 'submitted', { jobId, provider: 'jimeng' })
+        appendEvent(run.id, 'master-asset', 'primary', 0)
+        appendEvent(run.id, 'shot-assets', 'submitted', { jobId, provider: 'jimeng' })
         let st: ProviderStatus = { state: 'running', progress: null }
         for (let i = 0; i < 8; i++) {
           await new Promise((r) => setTimeout(r, 10000))
