@@ -5,7 +5,14 @@ import { randomUUID } from 'node:crypto'
 import { assertProvider } from '../provider.js'
 
 const BASE = 'https://jimeng.jianying.com'
-const MODEL_KEY = 'dreamina_ic_generate_video_model_vgfm_3.0'
+// 模型 key 会随官网轮换：默认取当前已知，可在 submit spec.modelKey 覆盖；探测脚本见 scripts/probe-jimeng-model.mjs
+export const MODEL_KEYS = [
+  'dreamina_ic_generate_video_model_vgfm_lite',      // 免费档（2026-08-16 实测可用）
+  'dreamina_ic_generate_video_model_vgfm_3.0',      // 已退役（ret 2061）
+  'dreamina_ic_generate_video_model_vgfm_3.0_pro',  // 需付费积分（ret 1006）
+  'dreamina_ic_generate_video_model_vgfm1.0',
+]
+const DEFAULT_MODEL_KEY = MODEL_KEYS[0]
 const DRAFT_VERSION = '3.2.8'
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
 
@@ -13,14 +20,14 @@ const uuid = () => randomUUID().replace(/-/g, '')
 
 function gcd(a, b) { return b === 0 ? a : gcd(b, a % b) }
 
-export function buildJimengDraftContent({ prompt, width, height, resolution = '720p', durationMs = 5000 }) {
+export function buildJimengDraftContent({ prompt, width, height, resolution = '720p', durationMs = 5000, modelKey = DEFAULT_MODEL_KEY }) {
   const componentId = uuid()
   const divisor = gcd(width, height)
   const aspectRatio = `${width / divisor}:${height / divisor}`
   const metricsExtra = JSON.stringify({ enterFrom: 'click', isDefaultSeed: 1, promptSource: 'custom', isRegenerate: false, originSubmitId: uuid() })
   return {
     extend: {
-      root_model: MODEL_KEY,
+      root_model: modelKey,
       m_video_commerce_info: { benefit_type: 'basic_video_operation_vgfm_v_three', resource_id: 'generate_video', resource_id_type: 'str', resource_sub_type: 'aigc' },
       m_video_commerce_info_list: [{ benefit_type: 'basic_video_operation_vgfm_v_three', resource_id: 'generate_video', resource_id_type: 'str', resource_sub_type: 'aigc' }],
     },
@@ -33,7 +40,7 @@ export function buildJimengDraftContent({ prompt, width, height, resolution = '7
         metadata: { type: '', id: uuid(), created_platform: 3, created_platform_version: '', created_time_in_ms: Date.now(), created_did: '' },
         generate_type: 'gen_video', aigc_mode: 'workbench',
         abilities: { type: '', id: uuid(), gen_video: { id: uuid(), type: '',
-          text_to_video_params: { type: '', id: uuid(), model_req_key: MODEL_KEY, priority: 0,
+          text_to_video_params: { type: '', id: uuid(), model_req_key: modelKey, priority: 0,
             seed: Math.floor(Math.random() * 100000000) + 2500000000,
             video_aspect_ratio: aspectRatio,
             video_gen_inputs: [{ duration_ms: durationMs, first_frame_image: undefined, end_frame_image: undefined, fps: 24, id: uuid(), min_version: '3.0.5', prompt, resolution, type: '', video_mode: 2 }],
@@ -74,24 +81,34 @@ export function createJimengProvider({ sessionId, timeoutMs = 60000, fetchImpl =
     capabilities: { textToVideo: true, imageToVideo: true, firstLastFrame: true, lipSync: false, tts: false, image: true, maxDurationSec: 5, resolutions: ['720p'], qualityTier: 3, freeQuota: true, dailyQuota: 66 },
     async quote() { return { qualityTier: 3, costEstimate: 0, currency: 'jimeng-credits' } },
     async health() {
-      const j = await req('POST', '/commerce/v1/benefits/user_credit', {})
-      const c = j?.data ?? {}
-      return { ok: true, quotaRemaining: (c.gift_credit ?? 0) + (c.purchase_credit ?? 0) + (c.vip_credit ?? 0), detail: c }
+      // 积分端点实测经常返回 1014 system busy（可能要求更多 Cookie），故降级为尽力而为：
+      // 失败不阻塞生成，额度信息在 UI 上显示 unknown。
+      try {
+        const j = await req('POST', '/commerce/v1/benefits/user_credit', {}, { retryBusy: 1 })
+        const c = j?.data ?? {}
+        return { ok: true, quotaRemaining: (c.gift_credit ?? 0) + (c.purchase_credit ?? 0) + (c.vip_credit ?? 0), detail: c }
+      } catch (e) {
+        return { ok: false, quotaRemaining: null, error: String(e?.message ?? e).slice(0, 120) }
+      }
     },
     async ensureCredits() {
-      const h = await this.health()
-      if (h.quotaRemaining <= 0) {
-        const r = await req('POST', '/commerce/v1/benefits/credit_receive', {})
-        const cur = r?.data?.cur_total_credits ?? null
-        return { received: true, remaining: cur }
+      // 尽力而为：查询失败直接继续（生成端点本身会扣免费额度）
+      try {
+        const h = await this.health()
+        if (h.quotaRemaining !== null && h.quotaRemaining <= 0) {
+          const r = await req('POST', '/commerce/v1/benefits/credit_receive', {})
+          return { received: true, remaining: r?.data?.cur_total_credits ?? null }
+        }
+        return { received: false, remaining: h.quotaRemaining }
+      } catch (e) {
+        return { received: false, remaining: null, note: String(e?.message ?? e).slice(0, 100) }
       }
-      return { received: false, remaining: h.quotaRemaining }
     },
     async submit(_stage, spec) {
       const { positive, negative, width = 720, height = 1280, resolution = '720p', durationSec = 5 } = spec ?? {}
       await this.ensureCredits()
       const prompt = [positive, negative ? `（避免：${negative}）` : ''].filter(Boolean).join(' ')
-      const body = buildJimengDraftContent({ prompt, width, height, resolution, durationMs: Math.round(durationSec * 1000) })
+      const body = buildJimengDraftContent({ prompt, width, height, resolution, durationMs: Math.round(durationSec * 1000), modelKey: spec?.modelKey ?? DEFAULT_MODEL_KEY })
       const j = await req('POST', '/mweb/v1/aigc_draft/generate?aigc_features=app_lip_sync&web_version=6.6.0&da_version=' + DRAFT_VERSION, body)
       const historyId = j?.data?.aigc_data?.history_record_id ?? j?.aigc_data?.history_record_id
       if (!historyId) throw new Error('jimeng: 响应缺少 history_record_id: ' + JSON.stringify(j).slice(0, 300))

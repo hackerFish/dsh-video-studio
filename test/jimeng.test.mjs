@@ -4,10 +4,10 @@ import { buildJimengDraftContent, createJimengProvider } from '../src/providers/
 
 test('draft 结构：与官网协议对齐（model_req_key/video_gen_inputs/commerce 字段）', () => {
   const d = buildJimengDraftContent({ prompt: '测试', width: 720, height: 1280 })
-  assert.equal(d.extend.root_model, 'dreamina_ic_generate_video_model_vgfm_3.0')
+  assert.equal(d.extend.root_model, 'dreamina_ic_generate_video_model_vgfm_lite')  // 免费档默认（2026-08-16 实测）
   const dc = JSON.parse(d.draft_content)
   const gen = dc.component_list[0].abilities.gen_video.text_to_video_params
-  assert.equal(gen.model_req_key, 'dreamina_ic_generate_video_model_vgfm_3.0')
+  assert.equal(gen.model_req_key, 'dreamina_ic_generate_video_model_vgfm_lite')
   assert.equal(gen.video_aspect_ratio, '9:16')           // 720x1280 → 9:16
   assert.equal(gen.video_gen_inputs[0].prompt, '测试')
   assert.equal(gen.video_gen_inputs[0].duration_ms, 5000)
