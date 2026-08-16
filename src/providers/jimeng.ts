@@ -162,5 +162,6 @@ export function createJimengProvider({ sessionId, timeoutMs = 60000, fetchImpl =
       if (!p.videoUrl) throw new Error('jimeng: 尚未完成或未找到视频地址')
       return { outputs: [p.videoUrl], meta: { status: 'success' } }
     },
-  }) as JimengProvider
+    poll,
+  })
 }
