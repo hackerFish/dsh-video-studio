@@ -1,15 +1,15 @@
 # 鲸影自我审计报告 / Whale Self-Audit Report
 
-> 自动生成于 2026-08-16T18:35:24.338Z —— `node scripts/self-audit.ts` 或 `whale_self_audit` 工具。
+> 自动生成于 2026-08-16T18:43:24.696Z —— `node scripts/self-audit.ts` 或 `whale_self_audit` 工具。
 > 本文件是生成物，勿手改；每天重跑一次，差异见 git diff（这正是"自我分析"的用法）。
 
 ## 概览
 
 - 包: **@hackerfish/dsh-video-studio** v0.2.0
-- git: `main` · 129 commits
-- 最近提交: selfaudit: 项目自我分析上线——矩阵单一事实源 + whale_self_audit 工具 + 复盘文档（110 单测全绿）
-- 测试: 27 个文件 / 110 个用例（静态计数；权威数字跑 `node --test`）
-- 源码: 38 个 TS 模块 / 4119 行
+- git: `main` · 131 commits
+- 最近提交: runtime: UI 账号→账号池→供应商全链路接线（whale_generate_video 走池；loadPool 新账号种子；116 单测全绿）
+- 测试: 28 个文件 / 116 个用例（静态计数；权威数字跑 `node --test`）
+- 源码: 40 个 TS 模块 / 4295 行
 - 供应商: 11 个（实测 4 · 适配器待 key 7 · 其中纯 key 型 3）
 
 ## 供应商矩阵
@@ -39,22 +39,21 @@
 
 - [🔑 等 key] **口型同步真实调用** — 适配器+8 单测就绪，差一个可灵 key 跑真片
 - [🔑 等 key] **可灵官方/百炼/豆包 ARK/万相视频真实生成** — 五个适配器就绪，全部等真实 key
-- [⬜ 待办] **UI 账号 → 运行时账号池接线** — vault/pool/pipeline 三件套已备好；host 全局池（启动时 loadPool → 工具调用走池）待接线
 - [⬜ 待办] **真实长片漫剧成片** — 现有 demo 为 mock/短镜；需先通一个视频通道
 - [⬜ 待办] **三个设置页 tab 人眼验证** — boot 与 API 已验证；UI 观感需用户在浏览器确认
 - [⬜ 待办] **推广位（Discussions #2400 更新/发布说明）** — 能力已就绪，差内容更新
 
 ## 源码模块（按行数）
 
-- `src/host/tools.ts` — 358 行
+- `src/host/tools.ts` — 417 行
 - `src/director/pipeline.ts` — 289 行
 - `src/client/index.ts` — 258 行
 - `src/content/presets.ts` — 248 行
-- `src/accounts/store.ts` — 227 行
+- `src/accounts/store.ts` — 224 行
 - `src/quota/scheduler.ts` — 202 行
 - `src/providers/jimeng.ts` — 168 行
 - `src/prompts/templates.ts` — 140 行
 - `src/providers/doubao-web.ts` — 128 行
 - `src/finalcut/render-ffmpeg.ts` — 126 行
 - `src/finalcut/jianying-draft.ts` — 124 行
-- `src/selfaudit/audit.ts` — 121 行
+- `src/host/index.ts` — 121 行
