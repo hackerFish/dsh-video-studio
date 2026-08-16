@@ -15,7 +15,17 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 → final cut (JianYing draft export / local ffmpeg render)
 ```
 
-- **The first three stages are LLM stages**: inside DSH the session model itself (Doubao/DeepSeek/anything) does them — the agent is the brain; the plugin supplies the rest.
+- **The first three stages are LLM stages**: inside DSH the session model itself does them — the model you're chatting with (Doubao, DeepSeek, whatever) is the brain that writes the story, script and shots; the plugin never calls an external LLM.
+
+**Mapping to the industry-standard toolchain**:
+
+| Industry flow | Whale |
+|---|---|
+| Doubao writes novel / script / shots | = DSH session model doing story/script/storyboard (pick a Doubao model and it IS "Doubao writes") |
+| MJ hero asset | = master-asset stage (MJ official API adapter to come; wanx/Seedream can substitute) |
+| image variations | = shot-assets stage (wanx ✅ verified · **Doubao Seedream ✅ wired**) |
+| Seedance video | = video stage (**Doubao Seedance ✅** / jimeng / kling / ComfyUI) |
+| JianYing final cut | = final-cut stage (JianYing draft export ✅ / ffmpeg ✅) |
 - Every stage has a gate: auto / ask / manual.
 - Parallel shots, quota scheduler, style genome, distribution pack as before.
 
@@ -34,7 +44,7 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 | kling official (可灵) | accessKey:secretKey JWT, api-beijing.klingai.com | ✅ adapter written — not yet tested against a real key |
 | kling via DashScope | `sk-` key | ✅ adapter written — not yet tested against a real key |
 | **wan video via DashScope (通义万相视频)** | `sk-` key, official free quota | ✅ adapter written (same async protocol as kling) — model id to confirm on first real key |
-| doubao/Seedance (火山方舟) | ARK API key | ✅ adapter written — not yet tested against a real key |
+| doubao (火山方舟) | ARK API key | ✅ Seedance video + **Seedream image** (assets) — not yet tested against a real key |
 | ComfyUI local | workflow JSON builder + /prompt protocol | ✅ protocol-tested (mock server), real GPU pending |
 | kling web (sessionid) | anti-bot one-time falcon token | 📄 anatomy documented; automation needs a capture bridge (deferred) |
 
