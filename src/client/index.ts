@@ -102,6 +102,122 @@ function WorkbenchPanel(_props: any): any {
   )
 }
 
+// 鲸影账号面板：多账号凭证管理（GET/POST/DELETE /dsh-video-studio/accounts）
+const PROVIDER_LABELS: Record<string, string> = {
+  mock: 'mock（链路自测）',
+  jimeng: '即梦 sessionid',
+  'tongyi-wanx': '通义万相',
+  kling: '可灵官方',
+  'kling-dashscope': 'DashScope 视频',
+  doubao: '豆包 Seedance/Seedream',
+  comfyui: 'ComfyUI 本地',
+  'sessionid-http': 'sessionid 通用',
+}
+
+function AccountPanel(_props: any): any {
+  const [doc, setDoc] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [form, setForm] = useState({ provider: 'jimeng', credential: '', dailyQuota: '66', note: '' })
+
+  const reload = () => {
+    fetch('/dsh-video-studio/accounts', { cache: 'no-store' })
+      .then((r: any) => r.json())
+      .then((d: any) => { setDoc(d); setError(null) })
+      .catch((e: unknown) => setError(String((e as Error)?.message ?? e)))
+  }
+  useEffect(() => { reload(); return () => {} }, [])
+
+  const submit = () => {
+    if (!form.credential.trim()) { setError('先填凭证'); return }
+    setBusy(true)
+    fetch('/dsh-video-studio/accounts', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        provider: form.provider,
+        credential: form.credential.trim(),
+        dailyQuota: Number(form.dailyQuota) || undefined,
+        note: form.note.trim() || undefined,
+      }),
+    })
+      .then((r: any) => r.json())
+      .then((d: any) => {
+        setBusy(false)
+        if (!d.ok) { setError(d.error ?? '添加失败'); return }
+        setForm({ ...form, credential: '', note: '' })
+        reload()
+      })
+      .catch((e: unknown) => { setBusy(false); setError(String((e as Error)?.message ?? e)) })
+  }
+
+  const remove = (id: string) => {
+    setBusy(true)
+    fetch('/dsh-video-studio/accounts?id=' + encodeURIComponent(id), { method: 'DELETE' })
+      .then((r: any) => r.json())
+      .then(() => { setBusy(false); reload() })
+      .catch((e: unknown) => { setBusy(false); setError(String((e as Error)?.message ?? e)) })
+  }
+
+  const inputStyle = { padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', fontSize: 14 }
+  const accounts = (doc?.accounts ?? []) as any[]
+  return createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 14 } },
+    createElement('h2', null, '鲸影账号 / Account Vault'),
+    createElement('p', { style: { opacity: 0.7, fontSize: 13 } },
+      '凭证只保存在本机 ~/.whale/whale.json（0600 权限），接口只返回脱敏提示。多账号按日额度轮换，失败自动冷却。'),
+    error ? createElement('p', { role: 'alert' }, '操作失败: ' + error) : null,
+    createElement('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+      createElement('select', {
+        value: form.provider,
+        onChange: (e: any) => setForm({ ...form, provider: e.target.value }),
+        style: inputStyle,
+      }, Object.keys(PROVIDER_LABELS).map((p) => createElement('option', { key: p, value: p }, PROVIDER_LABELS[p]))),
+      createElement('input', {
+        type: 'password',
+        placeholder: '凭证（sessionid / cookie / key）',
+        value: form.credential,
+        onChange: (e: any) => setForm({ ...form, credential: e.target.value }),
+        style: { ...inputStyle, flex: 1, minWidth: 220 },
+      }),
+      createElement('input', {
+        type: 'number',
+        placeholder: '日额度',
+        value: form.dailyQuota,
+        onChange: (e: any) => setForm({ ...form, dailyQuota: e.target.value }),
+        style: { ...inputStyle, width: 90 },
+      }),
+      createElement('input', {
+        type: 'text',
+        placeholder: '备注（可选）',
+        value: form.note,
+        onChange: (e: any) => setForm({ ...form, note: e.target.value }),
+        style: { ...inputStyle, width: 140 },
+      }),
+      createElement('button', {
+        onClick: submit,
+        disabled: busy,
+        style: { ...inputStyle, background: '#4176e6', color: '#fff', border: 'none', cursor: 'pointer' },
+      }, busy ? '保存中…' : '添加账号'),
+    ),
+    accounts.length === 0
+      ? createElement('p', { style: { opacity: 0.6 } }, '暂无账号——把免费的即梦/通义/豆包凭证挂进来，调度器会自动轮换。')
+      : accounts.map((a: any) => createElement('div', {
+          key: a.id,
+          style: { border: '1px solid rgba(0,0,0,.12)', borderRadius: 10, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 10 },
+        },
+          createElement('strong', null, PROVIDER_LABELS[a.provider] ?? a.provider),
+          createElement('code', { style: { fontSize: 12 } }, a.credentialHint),
+          createElement('span', { style: { fontSize: 12, opacity: 0.7 } }, '日额度 ' + (a.dailyQuota ?? '∞')),
+          a.note ? createElement('span', { style: { fontSize: 12, opacity: 0.7 } }, a.note) : null,
+          createElement('button', {
+            onClick: () => remove(a.id),
+            disabled: busy,
+            style: { marginLeft: 'auto', background: 'none', border: '1px solid rgba(200,60,60,.5)', color: '#c83c3c', borderRadius: 6, padding: '2px 10px', cursor: 'pointer' },
+          }, '删除'),
+        )),
+  )
+}
+
 export function apply(ctx: any): void {
   const injected = () => ({
     loadHealth: async () => {
@@ -126,6 +242,13 @@ export function apply(ctx: any): void {
     label: () => '鲸影工作台',
     inject: () => ({}),
   }, WorkbenchPanel))
+  ctx.slots.inject('settings.plugins.tab', () => ctx.slots.register({
+    name: 'settings.plugins.tab',
+    id: 'whale-accounts',
+    order: 32,
+    label: () => '鲸影账号',
+    inject: () => ({}),
+  }, AccountPanel))
   ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
     name: 'tool.call.toolview',
     key: 'whale_generate_video',
