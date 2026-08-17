@@ -1,6 +1,6 @@
 // Director pipeline orchestrator: six stages → executable, auditable, per-stage-gated run.
-import { mkdirSync } from 'node:fs'
-import { writeFile } from 'node:fs/promises'
+import { existsSync, mkdirSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 import { createTimeline, addClip, addSubtitle, addAudio, type Timeline } from '../finalcut/timeline.ts'
 import { renderTimeline, runFfmpeg, probeDurationSec } from '../finalcut/render-ffmpeg.ts'
 import { sayTts, sayAvailable } from '../voice/say-tts.ts'
@@ -10,12 +10,14 @@ import { STAGES, gatesOf, type GateMode } from './stages.ts'
 import { reviewShot, shouldRetry, type Reviewer } from '../quality/review.ts'
 import { optimizePrompt } from '../prompts/optimizer.ts'
 import type { BoosterScorebook } from '../prompts/boost-scorebook.ts'
-import type { Provider } from '../provider.ts'
+import type { Provider, ProviderStatus } from '../provider.ts'
 
 export interface ScriptShot {
   line: string
   prompt?: string
   durationSec?: number
+  /** 外部配音文件（mp3/wav 等，ffmpeg 可读）：提供时跳过本地 TTS，直接进成片/口型同步 */
+  voiceFile?: string
 }
 
 export interface Script {
@@ -53,6 +55,8 @@ export interface PipelineOptions {
     scorebook?: BoosterScorebook | null
     /** 账号池调度：提供时按健康度/额度轮换，失败退避、成功回写 */
     pool?: AccountPool | null
+    /** 口型同步供应商（capabilities.lipSync）：对每个有配音的镜头跑对口型，失败自动回退原片 */
+    lipSync?: Provider | null
   }
   gates?: Partial<Record<string, GateMode>>
   ask?: (stage: string) => Promise<boolean> | boolean
@@ -73,6 +77,7 @@ interface Board {
   line: string
   prompt: { positive: string; negative: string; boosters: string[] }
   durationSec: number
+  voiceFile?: string
 }
 
 interface ShotSlot {
@@ -82,6 +87,8 @@ interface ShotSlot {
   jobId: string | null
   voice: string | null
   accountId: string | null
+  sourceUrl: string | null
+  lipStill: string | null
 }
 
 export async function runPipeline({
@@ -114,6 +121,7 @@ export async function runPipeline({
       line: s.line,
       prompt: { positive: opt.optimized, negative: base.negative, boosters: opt.appliedBoosters },
       durationSec: s.durationSec ?? 3,
+      voiceFile: s.voiceFile,
     }
   })
   emit('storyboard', 'boards', boards.length)
@@ -140,7 +148,7 @@ export async function runPipeline({
     const provider = providers.find((p) => p.id === account?.provider) ?? providers[0]
     if (!provider) throw new Error(`镜头 ${b.index}: 无可用供应商（providers 为空且无账号路由）`)
     audit.decisions.push({ shot: b.index, provider: provider.id, account: account?.id ?? null, reason })
-    slots.push({ b, provider, still: `${workDir}/shot${b.index}.mp4`, jobId: null, voice: null, accountId: account?.id ?? null })
+    slots.push({ b, provider, still: `${workDir}/shot${b.index}.mp4`, jobId: null, voice: null, accountId: account?.id ?? null, sourceUrl: null, lipStill: null })
   }
 
   let running = 0
@@ -228,6 +236,7 @@ export async function runPipeline({
         const url = out.outputs[0]
         if (!url) throw new Error(`镜头 ${s.b.index} 无输出`)
         if (/^https?:/.test(url)) {
+          s.sourceUrl = url // 口型同步需要原始可公网访问的视频地址
           const res = await fetch(url)
           await writeFile(s.still, Buffer.from(await res.arrayBuffer()))
         } else {
@@ -262,7 +271,10 @@ export async function runPipeline({
   let t = 0
   for (const s of slots) {
     const b = s.b
-    if (opts.voice !== false && sayAvailable()) {
+    if (b.voiceFile && existsSync(b.voiceFile)) {
+      s.voice = b.voiceFile
+      emit('final-cut', 'voice-file', b.index)
+    } else if (opts.voice !== false && sayAvailable()) {
       {
         const vp = `${workDir}/line${b.index}.aiff`
         const vmp = `${workDir}/line${b.index}.mp3`
@@ -272,9 +284,46 @@ export async function runPipeline({
         emit('final-cut', 'voice', b.index)
       }
     }
+    // 口型同步段：有配音 + 有源视频引用（公网 URL 或 jobId）才跑；失败不致命，回退原片
+    if (opts.lipSync && s.voice && (s.sourceUrl ?? s.jobId)) {
+      try {
+        const audioB64 = Buffer.from(await readFile(s.voice)).toString('base64')
+        const spec: Record<string, unknown> = { mode: 'audio2video', audioBase64: audioB64 }
+        if (s.sourceUrl) spec.videoUrl = s.sourceUrl
+        else spec.videoId = s.jobId
+        const { jobId: lipJob } = await opts.lipSync.submit('final-cut', spec)
+        emit('final-cut', 'lipsync-submitted', { shot: b.index, jobId: lipJob, provider: opts.lipSync.id })
+        let lst: ProviderStatus = { state: 'running', progress: null }
+        const lipDeadline = Date.now() + maxPollMs
+        while (Date.now() < lipDeadline) {
+          lst = await opts.lipSync.status(lipJob)
+          if (lst.state === 'done' || lst.state === 'failed') break
+          await new Promise((r) => setTimeout(r, pollIntervalMs))
+        }
+        if (lst.state === 'done') {
+          const out = await opts.lipSync.fetch(lipJob)
+          const url = out.outputs[0]
+          if (url) {
+            s.lipStill = `${workDir}/shot${b.index}-lip.mp4`
+            if (/^https?:/.test(url)) {
+              const res = await fetch(url)
+              await writeFile(s.lipStill, Buffer.from(await res.arrayBuffer()))
+            } else {
+              await runFfmpeg(['-y', '-i', url, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', s.lipStill])
+            }
+            emit('final-cut', 'lipsync', { shot: b.index, src: url })
+          }
+        } else {
+          emit('final-cut', 'lipsync-error', { shot: b.index, state: lst.state, error: lst.error })
+        }
+      } catch (e) {
+        emit('final-cut', 'lipsync-error', { shot: b.index, error: String(e instanceof Error ? e.message : e) })
+      }
+    }
+    const clipSrc = s.lipStill ?? s.still
     const vDur = s.voice ? await probeDurationSec(s.voice) : b.durationSec
     const clipDur = Math.round((vDur + 1.2) * 1e6)
-    addClip(tl, { src: s.still, durationUs: clipDur })
+    addClip(tl, { src: clipSrc, durationUs: clipDur })
     if (s.voice) addAudio(tl, { src: s.voice, startUs: t + 400_000, durationUs: Math.round(vDur * 1e6), volume: 1 })
     addSubtitle(tl, { text: b.line, startUs: t + 200_000, durationUs: Math.round((vDur + 0.8) * 1e6) })
     t += clipDur

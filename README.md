@@ -57,6 +57,7 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 
 ## Editing & distribution
 
+- **Final cut with optional lip-sync stage**: with a `capabilities.lipSync` provider configured, every voiced shot runs audio-driven lip sync (video reference + audio base64) and the synced clip replaces the original on the timeline; failure falls back to the original clip, never blocking the render. Shots can also carry a pre-recorded `voiceFile` (external TTS/voice actor) that skips local TTS
 - **ffmpeg auto-render** — verified end-to-end (synthetic clips → timeline → burned subtitles → audio mix → final mp4, duration-checked)
 - **JianYing (剪映) draft export** — editable tracks/keyframes/subtitles for manual polish; structure-validated
 - **say TTS** — real Chinese voiceover with zero API keys
@@ -68,11 +69,11 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 - **Host routes**: `/dsh-video-studio/health`, `/dsh-video-studio/runs`, `/dsh-video-studio/accounts` (GET list masked / POST add / DELETE remove)
 - **Client UI**: 鲸影 (status) · 鲸影工作台 (live pipeline progress per run) · 鲸影账号 (account vault management) tabs in plugin settings; `whale_generate_video` gets a dedicated video card view
 - Installs via `dsh plugin add`, boot-verified clean
-- Planned: slash commands, subagent-parallel shots, lip-sync stage wiring into the final cut
+- Planned: slash commands, subagent-parallel shots
 
 ## Verification discipline
 
-116 unit tests green (account pool rotation/backoff/fallback, credential vault, runtime account→provider wiring, quota routing, prompt merging, score-feedback loop, jianying draft structure, ffmpeg end-to-end render, provider protocols via mock servers incl. kling lip-sync, preset pack integrity, self-audit, live jimeng model probe, live wanx image generation). Test logs and proof artifacts live in `demos/`. The provider matrix lives in `src/selfaudit/matrix.ts` (single source of truth shared by the health route, the vault whitelist and the audit report).
+120 unit tests green (account pool rotation/backoff/fallback, credential vault, runtime account→provider wiring, quota routing, prompt merging, score-feedback loop, lip-sync stage incl. fallback, jianying draft structure, ffmpeg end-to-end render, provider protocols via mock servers incl. kling lip-sync, preset pack integrity, self-audit, live jimeng model probe, live wanx image generation). Test logs and proof artifacts live in `demos/`. The provider matrix lives in `src/selfaudit/matrix.ts` (single source of truth shared by the health route, the vault whitelist and the audit report).
 
 ## Install
 
