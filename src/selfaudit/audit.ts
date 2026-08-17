@@ -43,7 +43,7 @@ export function scanModules(): ModuleStat[] {
     readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
       e.isDirectory() ? walk(join(dir, e.name)) : e.name.endsWith('.ts') ? [join(dir, e.name)] : [])
   return walk(base)
-    .map((p) => ({ path: p.slice(ROOT.length + 1), lines: readFileSync(p, 'utf8').split('\n').length }))
+    .map((p) => ({ path: p.slice(ROOT.length + 1).replace(/\\/g, '/'), lines: readFileSync(p, 'utf8').split('\n').length }))
     .sort((a, b) => a.path.localeCompare(b.path))
 }
 

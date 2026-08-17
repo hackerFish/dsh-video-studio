@@ -2,8 +2,9 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createRun, appendEvent, finishRun, listRuns, getRun } from '../src/host/runs.ts'
 
-test('运行注册表：创建/事件/完成/列表排序', () => {
+test('运行注册表：创建/事件/完成/列表排序', async () => {
   const a = createRun({ prompt: '鲸鱼', provider: 'mock' })
+  await new Promise((r) => setTimeout(r, 5)) // 保证时间戳可区分，测试"新在前"
   const b = createRun({ prompt: '海豚', provider: 'jimeng' })
   assert.equal(a.status, 'running')
   appendEvent(a.id, 'parse', 'prompt')

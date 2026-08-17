@@ -51,7 +51,8 @@ export function finishRun(runId: string, status: RunStatus): void {
 }
 
 export function listRuns(): RunRecord[] {
-  return [...runs.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  // createdAt 相同时（同毫秒创建）按 id 决出确定顺序，避免 UI 列表抖动
+  return [...runs.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
 }
 
 export function getRun(id: string): RunRecord | undefined {
