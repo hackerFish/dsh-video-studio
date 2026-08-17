@@ -21,7 +21,7 @@ export const PROVIDER_MATRIX: ProviderMatrixRow[] = [
   { id: 'kling-dashscope', channel: 'DashScope sk-', status: 'adapter', freeQuota: true, note: '官方免费额度通道（视频合成异步协议），等 key' },
   { id: 'kling-lipsync', channel: 'JWT 官方对口型', status: 'adapter', freeQuota: false, note: '官方 API 3-13 契约逐字段对齐，audio2video/text2video 双模式，8 单测，等 key' },
   { id: 'doubao', channel: '火山方舟 ARK key', status: 'adapter', freeQuota: false, note: 'Seedance 视频 + Seedream 图像接入，等 key' },
-  { id: 'dashscope-wan', channel: 'DashScope sk-', status: 'adapter', freeQuota: true, note: '万相视频官方免费额度通道，模型 id 待首个真实 key 确认' },
+  { id: 'dashscope-wan', channel: 'DashScope sk-', status: 'live-verified', freeQuota: true, note: '✅ 真机验证出片（wan2.2-t2v-plus，1920×1080 5s，约 90 秒出片，免费额度）——鲸影第一条真实 AI 视频' },
   { id: 'sessionid-http', channel: 'sessionid 通用', status: 'adapter', freeQuota: true, note: '多平台 sessionid 预设的通用适配器（jimeng 之外的可灵等）' },
 ]
 

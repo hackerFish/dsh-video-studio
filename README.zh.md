@@ -73,7 +73,8 @@
 - 真插件：装进 DSH 启动无报错；`/dsh-video-studio/health`、`/runs`、`/accounts` 三个路由在线；七个模型工具（whale_story_presets / whale_storyboard / whale_generate_video / whale_optimize_prompt / whale_quality_review / whale_comfyui_workflow / whale_self_audit）；设置页「鲸影」+「鲸影工作台」+「鲸影账号」三个 tab
 - 即梦免费档：协议全通，但**文生视频队列长期 SystemBusy**（实测凌晨依然满）——免费策略改为：万相免费文生图出资产图（✅ 实测出真图）→ 即梦图生视频/官方 API 免费额度出视频
 - 通义万相免费文生图：实测出过真图（1.28MB 鲸鱼图在 `demos/`）
-- 可灵官方、可灵百炼、豆包 Seedance、万相视频（DashScope 官方免费额度）四个适配器写好了，手头没 key，还没跑过真实生成
+- **万相视频（DashScope 官方免费额度）✅ 真机出片**：wan2.2-t2v-plus，1920×1080 5 秒约 90 秒出片，鲸鱼真片在 `demos/dashscope-wan-live.mp4`——这是鲸影第一条真实 AI 视频，免费额度通道正式跑通
+- 可灵官方、可灵百炼、豆包 Seedance 三个适配器写好，手头没 key，还没跑过真实生成
 - **可灵对口型（lip-sync）**：官方 API 3-13 契约适配器写好（audio2video 贴 TTS 音频 / text2video 官方音色），8 个单测覆盖字段映射与状态机——真实调用等 key
 - **ComfyUI 本地引擎**：`/prompt→/history→/view` 协议已通（mock 服务器级验证），导演层能把分镜决策直接生成 **ComfyUI workflow JSON**（变量替换+占位校验）——有 GPU 装个 ComfyUI 就是免费无限生成的本地引擎；`whale_comfyui_workflow` 工具离线可见
 - **豆包网页版**：真实抓包回放成功——SSE 聊天接口可做 LLM 三段（写小说/拆剧本/分镜），图片 bot 可出资产图；专业版免费额度按 7 天窗口（额度耗尽时图片停、文本继续）

@@ -92,10 +92,10 @@ export function gitFacts(): AuditFacts['git'] {
 export function knownGaps(): GapRow[] {
   return [
     { id: 'lip-sync-live', item: '口型同步真实调用', status: 'waiting-key', note: '段已接入流水线（mock 全测：参数/回退/跳过），差一个可灵 key 跑真片' },
-    { id: 'official-key-live', item: '可灵官方/百炼/豆包 ARK/万相视频真实生成', status: 'waiting-key', note: '五个适配器就绪，全部等真实 key' },
-    { id: 'long-demo', item: '真实长片漫剧成片', status: 'todo', note: '现有 demo 为 mock/短镜；需先通一个视频通道' },
+    { id: 'official-key-live', item: '可灵官方/可灵百炼/豆包 ARK 真实生成', status: 'waiting-key', note: '万相视频已真机出片 ✅；剩三个适配器等真实 key' },
+    { id: 'long-demo', item: '真实长片漫剧成片', status: 'todo', note: '视频通道已通（DashScope 万相免费额度），可开跑真实多镜成片' },
     { id: 'ui-eyes', item: '三个设置页 tab 人眼验证', status: 'todo', note: 'boot 与 API 已验证；UI 观感需用户在浏览器确认' },
-    { id: 'promotion', item: '推广位（Discussions #2400 更新/发布说明）', status: 'todo', note: '能力已就绪，差内容更新' },
+    { id: 'promotion', item: '推广位（Discussions #2400 更新/发布说明）', status: 'todo', note: '已有一条真片可配文发；差内容更新' },
   ]
 }
 

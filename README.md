@@ -49,7 +49,7 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 | kling official (可灵) | accessKey:secretKey JWT, api-beijing.klingai.com | ✅ adapter written — not yet tested against a real key |
 | kling via DashScope | `sk-` key | ✅ adapter written — not yet tested against a real key |
 | **kling-lipsync (可灵对口型)** | official JWT, `/v1/videos/lip-sync` | ✅ adapter written against the official 3-13 contract (audio2video + text2video voice modes), 8 tests — not yet tested against a real key |
-| **wan video via DashScope (通义万相视频)** | `sk-` key, official free quota | ✅ adapter written (same async protocol as kling) — model id to confirm on first real key |
+| **wan video via DashScope (通义万相视频)** | `sk-` key, official free quota | ✅ **LIVE-VERIFIED: real whale video generated** (wan2.2-t2v-plus, 1920×1080 5s, ~90s turnaround, free quota) — `demos/dashscope-wan-live.mp4` |
 | doubao (火山方舟) | ARK API key | ✅ Seedance video + **Seedream image** (assets) — not yet tested against a real key |
 | **doubao-web (豆包网页版)** | cookie, free web quota | ✅ **live-replayed & parsed**: SSE chat for the LLM stages (story/script/shots) + image bot for assets. Pro-tier free quota runs on a 7-day window (image bot pauses when spent; text keeps working) |
 | ComfyUI local | workflow JSON builder + /prompt protocol | ✅ protocol-tested (mock server), real GPU pending |
