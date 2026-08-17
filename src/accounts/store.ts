@@ -166,8 +166,9 @@ export class CredentialStore {
     return true
   }
 
+  /** 设置日额度；0 = 暂停调度（账号保留，池不会再选中）。 */
   setQuota(id: string, dailyQuota: number): StoredAccount | null {
-    if (!Number.isFinite(dailyQuota) || dailyQuota <= 0) throw new Error('dailyQuota 必须是正数')
+    if (!Number.isFinite(dailyQuota) || dailyQuota < 0) throw new Error('dailyQuota 必须 >= 0')
     const account = this.data.accounts.find((a) => a.id === id)
     if (!account) return null
     account.dailyQuota = dailyQuota

@@ -56,6 +56,10 @@ test('持久化往返：新实例读到同一份数据，文件权限 0600', () 
     const b = CredentialStore.open(dir)
     assert.equal(b.get('db')?.credential, 'cookie-value')
     assert.equal(b.get('db')?.dailyQuota, 20)
+    // 0 = 暂停调度（付费供应商的安全阀），负数拒绝
+    a.setQuota('db', 0)
+    assert.equal(a.get('db')?.dailyQuota, 0)
+    assert.throws(() => a.setQuota('db', -1), />= 0/)
     if (process.platform !== 'win32') {
       // POSIX: 0600；Windows 的 chmod 无此语义，只断言文件存在
       const mode = statSync(join(dir, 'whale.json')).mode & 0o777

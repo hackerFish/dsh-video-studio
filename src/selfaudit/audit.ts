@@ -92,8 +92,9 @@ export function gitFacts(): AuditFacts['git'] {
 export function knownGaps(): GapRow[] {
   return [
     { id: 'lip-sync-live', item: '口型同步真实调用', status: 'waiting-key', note: '段已接入流水线（mock 全测：参数/回退/跳过），差一个可灵 key 跑真片' },
-    { id: 'official-key-live', item: '可灵官方/可灵百炼/豆包 ARK 真实生成', status: 'waiting-key', note: '万相视频已真机出片 ✅；剩三个适配器等真实 key' },
-    { id: 'long-demo', item: '真实长片漫剧成片', status: 'todo', note: '视频通道已通（DashScope 万相免费额度），可开跑真实多镜成片' },
+    { id: 'cost-guard', item: '付费生成成本护栏', status: 'todo', note: '万相真机验证时烧了 ¥（1080p ¥0.70/s）——教训：付费供应商生成前必须显式确认预算 + 单任务成本上限（quote 已有 costEstimate 字段，接入确认流程即可）' },
+    { id: 'official-key-live', item: '可灵官方/可灵百炼/豆包 ARK 真实生成', status: 'waiting-key', note: '万相视频已真机出片 ✅（按量计费）；剩三个适配器等真实 key' },
+    { id: 'long-demo', item: '真实长片漫剧成片', status: 'todo', note: '视频通道已通（DashScope 万相，按量计费需预算确认），可开跑真实多镜成片' },
     { id: 'ui-eyes', item: '三个设置页 tab 人眼验证', status: 'todo', note: 'boot 与 API 已验证；UI 观感需用户在浏览器确认' },
     { id: 'promotion', item: '推广位（Discussions #2400 更新/发布说明）', status: 'todo', note: '已有一条真片可配文发；差内容更新' },
   ]
