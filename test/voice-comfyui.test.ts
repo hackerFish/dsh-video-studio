@@ -19,7 +19,7 @@ test('workflow 构建：变量替换 + 未替换占位可被校验器抓住', ()
   assert.deepEqual(validateWorkflow(ok), [])
 })
 
-test('macOS say：中文配音产出 aiff（无 key 真 TTS）', { skip: !sayAvailable() }, async () => {
+test('macOS say：中文配音产出 aiff（无 key 真 TTS）', { skip: process.platform !== 'darwin' }, async () => {
   const dir = mkdtempSync(join(tmpdir(), 'dsh-say-'))
   try {
     const out = join(dir, 'line.aiff')

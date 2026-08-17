@@ -51,11 +51,14 @@ export async function probeDurationSec(src: string): Promise<number> {
   return Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3])
 }
 
-const FONT_CANDIDATES = [
+export const FONT_CANDIDATES = [
   '/System/Library/Fonts/Supplemental/Songti.ttc',
   '/System/Library/Fonts/PingFang.ttc',
   '/System/Library/Fonts/STHeiti Light.ttc',
   '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
+  'C:\\Windows\\Fonts\\msyh.ttc', // 微软雅黑（Windows 中文字幕）
+  'C:\\Windows\\Fonts\\simhei.ttf', // 黑体
+  'C:\\Windows\\Fonts\\simsun.ttc', // 宋体
 ]
 
 export function pickFont(): string | null {

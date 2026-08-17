@@ -60,7 +60,7 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 - **Final cut with optional lip-sync stage**: with a `capabilities.lipSync` provider configured, every voiced shot runs audio-driven lip sync (video reference + audio base64) and the synced clip replaces the original on the timeline; failure falls back to the original clip, never blocking the render. Shots can also carry a pre-recorded `voiceFile` (external TTS/voice actor) that skips local TTS
 - **ffmpeg auto-render** — verified end-to-end (synthetic clips → timeline → burned subtitles → audio mix → final mp4, duration-checked)
 - **JianYing (剪映) draft export** — editable tracks/keyframes/subtitles for manual polish; structure-validated
-- **say TTS** — real Chinese voiceover with zero API keys
+- **say TTS** — real Chinese voiceover with zero API keys: macOS `say`; Windows PowerShell SAPI (`System.Speech`, needs a Chinese voice pack). Any platform can also plug external audio per shot via `voiceFile`
 - **Distribution pack** — platform specs + compliance precheck for 4 Chinese platforms
 
 ## DSH integration (deep invocation)
@@ -73,7 +73,7 @@ story (LLM, e.g. Doubao writes the novel) → script (LLM breaks it down)
 
 ## Verification discipline
 
-120 unit tests green (account pool rotation/backoff/fallback, credential vault, runtime account→provider wiring, quota routing, prompt merging, score-feedback loop, lip-sync stage incl. fallback, jianying draft structure, ffmpeg end-to-end render, provider protocols via mock servers incl. kling lip-sync, preset pack integrity, self-audit, live jimeng model probe, live wanx image generation). Test logs and proof artifacts live in `demos/`. The provider matrix lives in `src/selfaudit/matrix.ts` (single source of truth shared by the health route, the vault whitelist and the audit report).
+123 unit tests green (account pool rotation/backoff/fallback, credential vault, runtime account→provider wiring, quota routing, prompt merging, score-feedback loop, lip-sync stage incl. fallback, Windows SAPI script + CJK font candidates, jianying draft structure, ffmpeg end-to-end render, provider protocols via mock servers incl. kling lip-sync, preset pack integrity, self-audit, live jimeng model probe, live wanx image generation). Test logs and proof artifacts live in `demos/`. The provider matrix lives in `src/selfaudit/matrix.ts` (single source of truth shared by the health route, the vault whitelist and the audit report).
 
 ## Install
 
