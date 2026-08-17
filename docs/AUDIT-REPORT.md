@@ -1,15 +1,15 @@
 # 鲸影自我审计报告 / Whale Self-Audit Report
 
-> 自动生成于 2026-08-17T02:04:49.634Z —— `node scripts/self-audit.ts` 或 `whale_self_audit` 工具。
+> 自动生成于 2026-08-17T05:09:21.667Z —— `node scripts/self-audit.ts` 或 `whale_self_audit` 工具。
 > 本文件是生成物，勿手改；每天重跑一次，差异见 git diff（这正是"自我分析"的用法）。
 
 ## 概览
 
 - 包: **@hackerfish/dsh-video-studio** v0.2.0
-- git: `main` · 134 commits
-- 最近提交: pipeline: 口型同步段接入成片（lipSync 供应商可选，失败回退；voiceFile 外部配音缝；120 单测全绿）
-- 测试: 29 个文件 / 120 个用例（静态计数；权威数字跑 `node --test`）
-- 源码: 40 个 TS 模块 / 4344 行
+- git: `main` · 137 commits
+- 最近提交: win: Windows 兼容——SAPI 中文配音/微软雅黑等字体候选/迁移手册与 PS 引导脚本（123 单测全绿）
+- 测试: 30 个文件 / 123 个用例（静态计数；权威数字跑 `node --test`）
+- 源码: 40 个 TS 模块 / 4377 行
 - 供应商: 11 个（实测 4 · 适配器待 key 7 · 其中纯 key 型 3）
 
 ## 供应商矩阵
@@ -53,7 +53,7 @@
 - `src/quota/scheduler.ts` — 202 行
 - `src/providers/jimeng.ts` — 168 行
 - `src/prompts/templates.ts` — 140 行
+- `src/finalcut/render-ffmpeg.ts` — 129 行
 - `src/providers/doubao-web.ts` — 128 行
-- `src/finalcut/render-ffmpeg.ts` — 126 行
 - `src/finalcut/jianying-draft.ts` — 124 行
 - `src/host/index.ts` — 121 行
