@@ -1,15 +1,15 @@
 # 鲸影自我审计报告 / Whale Self-Audit Report
 
-> 自动生成于 2026-08-16T18:43:24.696Z —— `node scripts/self-audit.ts` 或 `whale_self_audit` 工具。
+> 自动生成于 2026-08-17T02:04:49.634Z —— `node scripts/self-audit.ts` 或 `whale_self_audit` 工具。
 > 本文件是生成物，勿手改；每天重跑一次，差异见 git diff（这正是"自我分析"的用法）。
 
 ## 概览
 
 - 包: **@hackerfish/dsh-video-studio** v0.2.0
-- git: `main` · 131 commits
-- 最近提交: runtime: UI 账号→账号池→供应商全链路接线（whale_generate_video 走池；loadPool 新账号种子；116 单测全绿）
-- 测试: 28 个文件 / 116 个用例（静态计数；权威数字跑 `node --test`）
-- 源码: 40 个 TS 模块 / 4295 行
+- git: `main` · 134 commits
+- 最近提交: pipeline: 口型同步段接入成片（lipSync 供应商可选，失败回退；voiceFile 外部配音缝；120 单测全绿）
+- 测试: 29 个文件 / 120 个用例（静态计数；权威数字跑 `node --test`）
+- 源码: 40 个 TS 模块 / 4344 行
 - 供应商: 11 个（实测 4 · 适配器待 key 7 · 其中纯 key 型 3）
 
 ## 供应商矩阵
@@ -37,7 +37,7 @@
 
 ## 差距清单（下一步）
 
-- [🔑 等 key] **口型同步真实调用** — 适配器+8 单测就绪，差一个可灵 key 跑真片
+- [🔑 等 key] **口型同步真实调用** — 段已接入流水线（mock 全测：参数/回退/跳过），差一个可灵 key 跑真片
 - [🔑 等 key] **可灵官方/百炼/豆包 ARK/万相视频真实生成** — 五个适配器就绪，全部等真实 key
 - [⬜ 待办] **真实长片漫剧成片** — 现有 demo 为 mock/短镜；需先通一个视频通道
 - [⬜ 待办] **三个设置页 tab 人眼验证** — boot 与 API 已验证；UI 观感需用户在浏览器确认
@@ -46,7 +46,7 @@
 ## 源码模块（按行数）
 
 - `src/host/tools.ts` — 417 行
-- `src/director/pipeline.ts` — 289 行
+- `src/director/pipeline.ts` — 338 行
 - `src/client/index.ts` — 258 行
 - `src/content/presets.ts` — 248 行
 - `src/accounts/store.ts` — 224 行
