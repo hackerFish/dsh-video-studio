@@ -90,7 +90,7 @@ export function registerTools(ctx: any): void {
       prompt: { type: 'string', required: true, description: 'Video prompt' },
       aspect_ratio: { type: 'string', required: false, enum: ['16:9', '9:16', '1:1'], description: 'Default 9:16' },
       duration_sec: { type: 'integer', required: false, description: '3-5 seconds (free tier max 5), default 5' },
-      provider: { type: 'string', required: false, enum: ['auto', 'mock', 'jimeng', 'kling', 'kling-dashscope', 'dashscope-wan', 'kling-lipsync', 'doubao', 'doubao-web', 'comfyui', 'tongyi-wanx'], description: 'Default auto = 账号池里的 jimeng 账号；指定供应商则从池里挑该家的健康账号' },
+      provider: { type: 'string', required: false, enum: ['auto', 'mock', 'jimeng', 'kling', 'kling-dashscope', 'dashscope-wan', 'kling-lipsync', 'doubao', 'doubao-web', 'comfyui', 'tongyi-wanx'], description: 'Default auto = 账号池里任一健康账号（质量档优先，已实测万相/可灵等真实通道）；指定供应商则只挑该家' },
     },
     output: {
       schema: {
@@ -128,11 +128,10 @@ export function registerTools(ctx: any): void {
         return { ok: true, status: 'submitted', jobId, message: 'mock provider accepted (placeholder output; configure a real provider for actual generation)' }
       }
 
-      // 1) 账号池路径：鲸影账号 tab 登记的凭证
+      // 1) 账号池路径：鲸影账号 tab 登记的凭证（auto = 池里任一健康真实账号，质量优先）
       try {
-        const target = args.provider === 'auto' ? 'jimeng' : String(args.provider)
         const pool = runtimePool()
-        const picked = pool.pick(target)
+        const picked = args.provider === 'auto' ? pool.pick() : pool.pick(String(args.provider))
         if (picked.account && picked.reason === 'ok') {
           const accountId = picked.account.id
           const p = providerForAccount(picked.account)
@@ -173,7 +172,8 @@ export function registerTools(ctx: any): void {
         }
         if (picked.reason !== 'none') {
           finishRun(run.id, 'failed')
-          return { ok: false, status: 'no-account', message: `账号池里没有可用的 ${target} 账号（${picked.reason}）——到设置页「鲸影账号」添加，或等冷却结束` }
+          const what = args.provider === 'auto' ? '' : ` ${args.provider}`
+          return { ok: false, status: 'no-account', message: `账号池里没有可用的${what}账号（${picked.reason}）——到设置页「鲸影账号」添加，或等冷却结束` }
         }
       } catch (e) {
         finishRun(run.id, 'failed')
