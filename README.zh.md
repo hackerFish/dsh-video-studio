@@ -4,6 +4,12 @@
 
 > 生态现状：DSH 已有 1000+ 插件，但**没有一个生成式视频插件**；外部有工业级漫剧平台（waoowaoo / LumenX / MangaV / ArcReel），但都是独立软件，不是 DSH 插件。鲸影把这条已验证的流水线做成 **DSH 原生、热拔插、可每步接管** 的插件。
 
+**真机演示——真实 AI 生成视频（wan2.2-t2v-plus，DashScope，1080p 5 秒）：**
+
+![鲸影真机演示](demos/whale-live-demo.gif)
+
+[项目量化评估](docs/PROJECT-ASSESSMENT.md)
+
 ## 一句话定位
 
 **质量第一，省钱第二**：免费额度优先试生成 → 质检不达标自动升档重拍 → 全部消耗可追溯。

@@ -6,6 +6,12 @@
 
 > The DSH ecosystem has 1000+ plugins — none does generative video. Whale brings the industry-validated motion-comic pipeline (waoowaoo / LumenX / MangaV / ArcReel pattern) into DSH as a hot-pluggable, per-step-controllable plugin.
 
+**Live demo — real AI-generated video (wan2.2-t2v-plus, DashScope, 1080p 5s):**
+
+![whale live demo](demos/whale-live-demo.gif)
+
+[Quantified project assessment](docs/PROJECT-ASSESSMENT.md)
+
 ## Pipeline — the industry-standard seven-stage workflow
 
 ```
