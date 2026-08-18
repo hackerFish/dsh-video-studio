@@ -10,6 +10,7 @@ import { optimizePrompt } from '../prompts/optimizer.ts'
 import { applyTemplate, listTemplates } from '../prompts/templates.ts'
 import { providerForAccount } from './account-providers.ts'
 import type { ProviderStatus } from '../provider.ts'
+import { buildStoryboard } from './storyboard.ts'
 
 export const name = 'dsh-video-studio'
 
@@ -139,6 +140,30 @@ export function apply(ctx: any): void {
         }
       },
     }), 'dsh-video-studio: prompt-optimize route')
+    host.effect(() => host.webServer.register({
+      kind: 'exact',
+      path: '/dsh-video-studio/storyboard',
+      handler: async (request: any, response: any) => {
+        if (request.method !== 'POST') { response.writeHead(405, { allow: 'POST' }); response.end(); return }
+        try {
+          const body = tryJson(await readBody(request)) ?? {}
+          if (!String(body.outline ?? '').trim() && !String(body.charactersText ?? '').trim()) {
+            sendJson(response, 400, { ok: false, error: '大纲或角色至少填一项' })
+            return
+          }
+          const plan = buildStoryboard({
+            outline: String(body.outline ?? ''),
+            charactersText: String(body.charactersText ?? ''),
+            style: body.style ? String(body.style) : undefined,
+            aspectRatio: body.aspectRatio ? String(body.aspectRatio) : undefined,
+            durationSec: body.durationSec ? Number(body.durationSec) : undefined,
+          })
+          sendJson(response, 200, { ok: true, ...plan })
+        } catch (e) {
+          sendJson(response, 400, { ok: false, error: e instanceof Error ? e.message : String(e) })
+        }
+      },
+    }), 'dsh-video-studio: storyboard route')
     host.effect(() => host.webServer.register({
       kind: 'exact',
       path: '/dsh-video-studio/generate',

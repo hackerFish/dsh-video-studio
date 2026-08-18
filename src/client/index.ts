@@ -145,6 +145,8 @@ function WorkbenchPanel(_props: any): any {
       createElement('span', { style: { fontSize: 11, opacity: 0.5 } },
         '自动化（workflow 生成 / 资产板）纯本地可用，不依赖任何引擎；只有"执行出图"才需要选一个引擎。'),
     ),
+    // ---- 分镜工坊：大纲 → 角色提示词卡 + 逐镜顶级提示词 → 一键开做 ----
+    createElement(StoryboardStudio, null),
     // ---- 提示词精调台（引擎无关，纯本地精调 → 提交云引擎） ----
     createElement(PromptCockpit, null),
     // ---- 资产流水线看板（脚手架，占位不真生成） ----
@@ -199,6 +201,89 @@ function WorkbenchPanel(_props: any): any {
           )
         }),
   )
+}
+
+// 分镜工坊：大纲+角色 → 顶级提示词卡与逐镜提示词 → 一键生成（纯本地拆解，成本护栏）
+function StoryboardStudio(_props: any): any {
+  const [outline, setOutline] = useState('三年前你们踩我出局，今天我让你们所有人求我回来。\n苏婉，这份做空报告，你确定要发？')
+  const [charsText, setCharsText] = useState('林越|28岁男性，利落黑短发，冷峻眼神，藏青冲锋衣\n苏婉|26岁女性，深棕长直发，米色风衣，银框眼镜')
+  const [style, setStyle] = useState('3D 国漫写实，电影级都市夜景，冷色霓虹')
+  const [ratio, setRatio] = useState('9:16')
+  const [plan, setPlan] = useState<any>(null)
+  const [busy, setBusy] = useState(false)
+  const [shotsOut, setShotsOut] = useState<Record<number, any>>({})
+  const [running, setRunning] = useState<number | null>(null)
+  const inputStyle = { padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', fontSize: 13, fontFamily: 'inherit' }
+  const card = { border: '1px solid rgba(0,0,0,.1)', borderRadius: 10, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.06)' }
+  const build = () => {
+    setBusy(true); setPlan(null); setShotsOut({})
+    fetch('/dsh-video-studio/storyboard', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ outline, charactersText: charsText, style: style || undefined, aspectRatio: ratio }),
+    }).then((r: any) => r.json()).then((d: any) => { setBusy(false); setPlan(d) })
+      .catch((e: unknown) => { setBusy(false); setPlan({ ok: false, error: String((e as Error)?.message ?? e) }) })
+  }
+  const genOne = (i: number, prompt: string) => {
+    setRunning(i)
+    fetch('/dsh-video-studio/generate', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ prompt, aspectRatio: ratio, durationSec: 5 }),
+    }).then((r: any) => r.json()).then((d: any) => { setShotsOut((m) => ({ ...m, [i]: d })); setRunning(null) })
+      .catch((e: unknown) => { setShotsOut((m) => ({ ...m, [i]: { ok: false, error: String((e as Error)?.message ?? e) } })); setRunning(null) })
+  }
+  const runAll = async () => {
+    for (const s of plan?.shots ?? []) {
+      genOne(s.index, s.prompt)
+      await new Promise((r) => setTimeout(r, 600)) // 顺序执行，尊重额度护栏
+    }
+  }
+  const copy = (t: string) => { try { (navigator as any).clipboard?.writeText(t).catch(() => {}) } catch { /* 忽略 */ } }
+  const section = (title: string, sub: string, children: any): any =>
+    createElement('div', { style: { ...card, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 } },
+      createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' } },
+        createElement('strong', { style: { fontSize: 14 } }, title),
+        createElement('span', { style: { fontSize: 11, opacity: 0.55 } }, sub)),
+      children)
+  return createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+    section('分镜工坊 / Storyboard Studio', '大纲 + 角色 → 顶级提示词卡与逐镜提示词（纯本地，不烧 token）',
+      createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        createElement('textarea', { value: outline, onChange: (e: any) => setOutline(e.target.value), rows: 3, placeholder: '大纲（按句子/换行自动拆分为镜头）', style: { ...inputStyle, width: '100%', boxSizing: 'border-box' } }),
+        createElement('textarea', { value: charsText, onChange: (e: any) => setCharsText(e.target.value), rows: 2, placeholder: '角色清单：每行 名字|描述', style: { ...inputStyle, width: '100%', boxSizing: 'border-box' } }),
+        createElement('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+          createElement('input', { value: style, onChange: (e: any) => setStyle(e.target.value), placeholder: '风格', style: { ...inputStyle, flex: 1, minWidth: 180 } }),
+          createElement('select', { value: ratio, onChange: (e: any) => setRatio(e.target.value), style: inputStyle },
+            ['9:16', '16:9', '1:1', '4:3', '3:4'].map((r) => createElement('option', { key: r, value: r }, r))),
+          createElement('button', { onClick: build, disabled: busy, style: { ...inputStyle, background: '#4176e6', color: '#fff', border: 'none', cursor: 'pointer' } }, busy ? '拆解中…' : '📋 生成分镜'))))),
+    plan && !plan.ok && createElement('div', { role: 'alert', style: { fontSize: 12, color: '#c83c3c' } }, '失败: ' + (plan.error ?? '')),
+    plan && plan.ok && createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+      // 角色提示词卡
+      plan.characters.length > 0 && section('角色提示词卡 · ' + plan.characters.length, '三视图模板 + 增益库，顶级可直接用',
+        createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 8 } },
+          plan.characters.map((c: any) => createElement('div', { key: c.name, style: { ...card, padding: 10, display: 'flex', flexDirection: 'column', gap: 6 } },
+            createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+              createElement('strong', null, '🧑 ' + c.name),
+              createElement('button', { onClick: () => copy(c.prompt), style: { fontSize: 11, border: '1px solid rgba(0,0,0,.2)', borderRadius: 5, background: 'none', cursor: 'pointer', padding: '2px 8px' } }, '复制')),
+            createElement('div', { style: { fontSize: 11, opacity: 0.65, maxHeight: 96, overflow: 'hidden' } }, c.prompt),
+          )))),
+      // 逐镜提示词
+      section('分镜提示词 · ' + plan.shots.length, '每镜顶级提示词，可单独生成或一键开做',
+        (() => {
+          const rows = plan.shots.map((s: any) => createElement('div', { key: s.index, style: { ...card, padding: 10, display: 'flex', flexDirection: 'column', gap: 6 } },
+            createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+              createElement('strong', { style: { fontSize: 13 } }, '镜 ' + (s.index + 1) + ' · ' + s.line),
+              createElement('div', { style: { display: 'flex', gap: 6 } },
+                createElement('button', { onClick: () => copy(s.prompt), style: { fontSize: 11, border: '1px solid rgba(0,0,0,.2)', borderRadius: 5, background: 'none', cursor: 'pointer', padding: '2px 8px' } }, '复制'),
+                createElement('button', { onClick: () => genOne(s.index, s.prompt), disabled: running === s.index, style: { fontSize: 11, border: 'none', borderRadius: 5, background: '#2ea043', color: '#fff', cursor: 'pointer', padding: '2px 8px' } }, running === s.index ? '生成中…' : '生成此镜'))),
+            createElement('div', { style: { fontSize: 11, opacity: 0.7 } }, s.prompt),
+            shotsOut[s.index] && (
+              shotsOut[s.index].ok
+                ? createElement('img', { src: shotsOut[s.index].url, alt: 'shot' + s.index, style: { maxWidth: 220, borderRadius: 6, border: '1px solid rgba(0,0,0,.1)' } })
+                : createElement('div', { role: 'alert', style: { fontSize: 11, color: shotsOut[s.index].status === 'quota-paused' ? '#b3870e' : '#c83c3c' } },
+                    (shotsOut[s.index].status ?? 'error') + ': ' + (shotsOut[s.index].error ?? shotsOut[s.index].message ?? ''))),
+          ))
+          const runBtn = createElement('button', { onClick: runAll, style: { alignSelf: 'flex-start', ...inputStyle, background: '#7c3aed', color: '#fff', border: 'none', cursor: 'pointer' } }, '🎬 一键开做（顺序生成）')
+          return createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } }, ...rows, runBtn)
+        })()))
 }
 
 // 提示词精调台：草稿 → 模板/增益精调（纯本地）→ 提交云引擎出图（成本护栏）
