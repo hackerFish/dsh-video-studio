@@ -50,7 +50,8 @@ function VideoCard(props: any): any {
   )
 }
 
-// 鲸影工作台：六段流水线可视化（轮询 /dsh-video-studio/runs，展示每次生成的阶段进度与事件流）
+// 构建标记：改这个值会改变客户端文件哈希 → rev 变化 → 强制浏览器换新模块（破 IndexedDB 缓存）
+const WHALE_BUILD = 'r5-storyboard'
 const WHALE_STAGE_LABELS: Record<string, string> = {
   story: '故事', script: '剧本', storyboard: '分镜', 'master-asset': '主图', 'shot-assets': '资产图', video: '视频', 'final-cut': '成片',
 }
@@ -117,7 +118,7 @@ function WorkbenchPanel(_props: any): any {
   const runImages = lastRun ? collectImages(lastRun) : []
   const reviewEvents = lastRun ? (lastRun.events ?? []).filter((e: any) => e.type === 'review' || e.type === 'promote' || e.type === 'retry') : []
   return createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
-    createElement('h2', null, '鲸影工作台 / Pipeline Workbench'),
+    createElement('h2', null, '鲸影工作台 / Pipeline Workbench · ' + WHALE_BUILD),
     // ---- ComfyUI 常驻卡 ----
     createElement('div', { style: { border: '1px solid rgba(0,0,0,.12)', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 } },
       createElement('span', { style: { width: 10, height: 10, borderRadius: '50%', background: comfyColor, flexShrink: 0 } }),
