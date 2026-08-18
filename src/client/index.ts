@@ -145,6 +145,8 @@ function WorkbenchPanel(_props: any): any {
       createElement('span', { style: { fontSize: 11, opacity: 0.5 } },
         '自动化（workflow 生成 / 资产板）纯本地可用，不依赖任何引擎；只有"执行出图"才需要选一个引擎。'),
     ),
+    // ---- 提示词精调台（引擎无关，纯本地精调 → 提交云引擎） ----
+    createElement(PromptCockpit, null),
     // ---- 资产流水线看板（脚手架，占位不真生成） ----
     createElement('div', { style: { border: '1px solid rgba(0,0,0,.12)', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8 } },
       createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
@@ -196,6 +198,69 @@ function WorkbenchPanel(_props: any): any {
               '事件: ' + (run.events ?? []).map((e: any) => e.stage + '.' + e.type).join(' → ')),
           )
         }),
+  )
+}
+
+// 提示词精调台：草稿 → 模板/增益精调（纯本地）→ 提交云引擎出图（成本护栏）
+function PromptCockpit(_props: any): any {
+  const [draft, setDraft] = useState('一只鲸鱼在深海中游动，蓝色调，电影感')
+  const [style, setStyle] = useState('3D 国漫写实，电影级')
+  const [template, setTemplate] = useState('')
+  const [ratio, setRatio] = useState('16:9')
+  const [result, setResult] = useState<any>(null)
+  const [busy, setBusy] = useState(false)
+  const [gen, setGen] = useState<any>(null)
+  const optimize = () => {
+    setBusy(true)
+    fetch('/dsh-video-studio/prompt-optimize', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ prompt: draft, style: style || undefined, template: template || undefined, aspectRatio: ratio }),
+    }).then((r: any) => r.json()).then((d: any) => { setBusy(false); setResult(d) })
+      .catch((e: unknown) => { setBusy(false); setResult({ ok: false, error: String((e as Error)?.message ?? e) }) })
+  }
+  const generate = () => {
+    const src = result?.ok ? result.optimized : draft
+    setGen({ running: true })
+    fetch('/dsh-video-studio/generate', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ prompt: src, aspectRatio: ratio, durationSec: 5 }),
+    }).then((r: any) => r.json()).then((d: any) => setGen(d))
+      .catch((e: unknown) => setGen({ ok: false, status: 'error', error: String((e as Error)?.message ?? e) }))
+  }
+  const inputStyle = { padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', fontSize: 13, fontFamily: 'inherit' }
+  return createElement('div', { style: { border: '1px solid rgba(0,0,0,.12)', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8 } },
+    createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+      createElement('strong', null, '提示词精调台 / Prompt Cockpit'),
+      createElement('span', { style: { fontSize: 11, opacity: 0.5 } }, '纯本地精调（模板+增益库），无 GPU 也能用')),
+    createElement('textarea', {
+      value: draft, onChange: (e: any) => setDraft(e.target.value), rows: 3,
+      style: { ...inputStyle, width: '100%', boxSizing: 'border-box' },
+    }),
+    createElement('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+      createElement('input', { value: style, onChange: (e: any) => setStyle(e.target.value), placeholder: '风格', style: { ...inputStyle, flex: 1, minWidth: 160 } }),
+      createElement('select', { value: template, onChange: (e: any) => setTemplate(e.target.value), style: inputStyle },
+        createElement('option', { value: '' }, '不套模板'),
+        createElement('option', { value: 'character-sheet' }, '角色三视图'),
+        createElement('option', { value: 'scene-master' }, '场景主图'),
+        createElement('option', { value: 'shot-scene' }, '单镜画面')),
+      createElement('select', { value: ratio, onChange: (e: any) => setRatio(e.target.value), style: inputStyle },
+        ['16:9', '9:16', '1:1', '4:3', '3:4'].map((r) => createElement('option', { key: r, value: r }, r))),
+      createElement('button', { onClick: optimize, disabled: busy, style: { ...inputStyle, background: '#4176e6', color: '#fff', border: 'none', cursor: 'pointer' } }, busy ? '精调中…' : '⚡ 精调到顶级'),
+      createElement('button', { onClick: generate, style: { ...inputStyle, background: '#2ea043', color: '#fff', border: 'none', cursor: 'pointer' } }, '🎬 提交生成'),
+    ),
+    result && (result.ok
+      ? createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 } },
+          createElement('div', null, '优化后（增益 ' + result.appliedBoosters.length + ' 项）：' + result.optimized),
+          createElement('div', { style: { opacity: 0.7 } }, '负面: ' + (result.negative ?? []).join('，')))
+      : createElement('div', { role: 'alert', style: { fontSize: 12, color: '#c83c3c' } }, '精调失败: ' + (result.error ?? ''))),
+    gen && gen.running && createElement('div', { style: { fontSize: 12, opacity: 0.7 } }, '生成中（额度护栏生效，默认走池内健康引擎）…'),
+    gen && !gen.running && (
+      gen.ok
+        ? createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
+            createElement('span', { style: { fontSize: 12, opacity: 0.8 } }, '✅ 已生成（' + (gen.engine ?? '') + '）'),
+            createElement('img', { src: gen.url, alt: 'generated', style: { width: '100%', maxWidth: 320, borderRadius: 8, border: '1px solid rgba(0,0,0,.1)' } }))
+        : createElement('div', { role: 'alert', style: { fontSize: 12, color: gen.status === 'quota-paused' ? '#b3870e' : '#c83c3c' } },
+            '生成未完成（' + (gen.status ?? 'error') + '）: ' + (gen.error ?? gen.message ?? ''))),
   )
 }
 

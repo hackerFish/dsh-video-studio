@@ -2,10 +2,14 @@
 // export const name + export function apply(ctx) + webServer route + model tool registration.
 // NOTE: ctx is typed loosely on purpose — DSH runtime types are provided by the profile at load time.
 import { registerTools } from './tools.ts'
-import { listRuns, getRun } from './runs.ts'
+import { listRuns, getRun, createRun, appendEvent, finishRun } from './runs.ts'
 import { maskCredential } from '../accounts/store.ts'
 import { providerIds } from '../selfaudit/matrix.ts'
-import { runtimeVault, invalidatePool } from './runtime.ts'
+import { runtimeVault, runtimePool, invalidatePool, persistPool } from './runtime.ts'
+import { optimizePrompt } from '../prompts/optimizer.ts'
+import { applyTemplate, listTemplates } from '../prompts/templates.ts'
+import { providerForAccount } from './account-providers.ts'
+import type { ProviderStatus } from '../provider.ts'
 
 export const name = 'dsh-video-studio'
 
@@ -116,6 +120,93 @@ export function apply(ctx: any): void {
         }
       },
     }), 'dsh-video-studio: accounts route')
+    host.effect(() => host.webServer.register({
+      kind: 'exact',
+      path: '/dsh-video-studio/prompt-optimize',
+      handler: async (request: any, response: any) => {
+        if (request.method !== 'POST') { response.writeHead(405, { allow: 'POST' }); response.end(); return }
+        try {
+          const body = tryJson(await readBody(request)) ?? {}
+          let draft = String(body.prompt ?? '')
+          if (!draft.trim()) { sendJson(response, 400, { ok: false, error: '缺少 prompt' }); return }
+          if (body.template) draft = applyTemplate(String(body.template), {
+            description: draft, style: body.style ? String(body.style) : undefined, aspectRatio: body.aspectRatio ? String(body.aspectRatio) : undefined,
+          })
+          const r = optimizePrompt(draft, { style: body.style ? String(body.style) : undefined, aspectRatio: body.aspectRatio ? String(body.aspectRatio) : undefined })
+          sendJson(response, 200, { ok: true, optimized: r.optimized, appliedBoosters: r.appliedBoosters, negative: r.negative, templates: listTemplates() })
+        } catch (e) {
+          sendJson(response, 400, { ok: false, error: e instanceof Error ? e.message : String(e) })
+        }
+      },
+    }), 'dsh-video-studio: prompt-optimize route')
+    host.effect(() => host.webServer.register({
+      kind: 'exact',
+      path: '/dsh-video-studio/generate',
+      handler: async (request: any, response: any) => {
+        if (request.method !== 'POST') { response.writeHead(405, { allow: 'POST' }); response.end(); return }
+        try {
+          const body = tryJson(await readBody(request)) ?? {}
+          const prompt = String(body.prompt ?? '').trim()
+          if (!prompt) { sendJson(response, 400, { ok: false, error: '缺少 prompt' }); return }
+          const pool = runtimePool()
+          const picked = body.engine ? pool.pick(String(body.engine)) : pool.pick()
+          const account = picked.account
+          if (!account || picked.reason !== 'ok') {
+            sendJson(response, 200, { ok: false, status: 'no-account', message: `引擎不可用（${picked.reason}）：到「鲸影账号」确认额度 > 0 且未冷却` })
+            return
+          }
+          if ((account.dailyQuota ?? Infinity) <= 0) {
+            sendJson(response, 200, { ok: false, status: 'quota-paused', message: `${account.provider} 额度为 0（暂停调度）——到「鲸影账号」开启额度并确认预算` })
+            return
+          }
+          const p = providerForAccount(account)
+          const run = createRun({ prompt, provider: account.provider })
+          appendEvent(run.id, 'story', 'prompt', prompt)
+          appendEvent(run.id, 'storyboard', 'single-shot', { aspectRatio: body.aspectRatio ?? '16:9' })
+          const spec: Record<string, unknown> = { positive: prompt, aspectRatio: body.aspectRatio ?? '16:9' }
+          if (body.durationSec) spec.durationSec = Number(body.durationSec)
+          try {
+            const { jobId } = await p.submit('video', spec)
+            pool.charge(account.id)
+            appendEvent(run.id, 'shot-assets', 'submitted', { jobId, provider: p.id })
+            let st: ProviderStatus = { state: 'running', progress: null }
+            const deadline = Date.now() + 120000
+            while (Date.now() < deadline) {
+              await new Promise((r) => setTimeout(r, 5000))
+              st = await p.status(jobId)
+              appendEvent(run.id, 'video', 'polling', { state: st.state })
+              if (st.state === 'done' || st.state === 'failed') break
+            }
+            if (st.state === 'done') {
+              const out = await p.fetch(jobId)
+              const url = out.outputs[0]
+              pool.recordSuccess(account.id)
+              appendEvent(run.id, 'final-cut', 'done', { url })
+              finishRun(run.id, 'done')
+              persistPool()
+              sendJson(response, 200, { ok: true, status: 'done', url, engine: p.id, account: account.id })
+              return
+            }
+            if (st.state === 'failed') {
+              pool.recordFailure(account.id, st.error)
+              finishRun(run.id, 'failed')
+              persistPool()
+              sendJson(response, 200, { ok: false, status: 'failed', error: st.error ?? '生成失败', engine: p.id })
+              return
+            }
+            finishRun(run.id, 'failed')
+            sendJson(response, 200, { ok: false, status: 'timeout', error: '生成超时（120s）' })
+          } catch (e) {
+            pool.recordFailure(account.id, e instanceof Error ? e.message : String(e))
+            finishRun(run.id, 'failed')
+            persistPool()
+            sendJson(response, 200, { ok: false, status: 'error', error: String(e instanceof Error ? e.message : e).slice(0, 300) })
+          }
+        } catch (e) {
+          sendJson(response, 400, { ok: false, error: e instanceof Error ? e.message : String(e) })
+        }
+      },
+    }), 'dsh-video-studio: generate route')
     host.effect(() => host.webServer.register({
       kind: 'exact',
       path: '/dsh-video-studio/comfyui',
