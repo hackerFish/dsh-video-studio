@@ -78,18 +78,44 @@ function WorkbenchPanel(_props: any): any {
   if (error) return createElement('p', { role: 'alert' }, '工作台读取失败: ' + error)
   if (!doc) return createElement('p', { role: 'status' }, '正在读取运行记录…')
   const runs = doc.runs ?? []
-  // ComfyUI 常驻状态卡：无任务时也展示（在线/离线/未配置）
+  // ComfyUI 常驻状态卡：无任务时也展示（在线/离线/未配置/报错）
   const comfyState = comfy?.state ?? 'loading'
-  const comfyColor = comfyState === 'online' ? '#2ea043' : comfyState === 'offline' ? '#c83c3c' : 'rgba(0,0,0,.45)'
+  const comfyColor = comfyState === 'online' ? '#2ea043' : comfyState === 'offline' || comfyState === 'error' ? '#c83c3c' : 'rgba(0,0,0,.45)'
   const comfyTitle = comfyState === 'online' ? 'ComfyUI 在线'
     : comfyState === 'offline' ? 'ComfyUI 离线'
     : comfyState === 'not-configured' ? 'ComfyUI 未配置'
+    : comfyState === 'error' ? 'ComfyUI 状态读取失败'
     : 'ComfyUI 状态读取中…'
   const comfyDetail = comfyState === 'online'
     ? `GPU: ${comfy.gpu ?? 'unknown'} · 队列 运行${comfy.queue?.running ?? 0}/等待${comfy.queue?.pending ?? 0}`
     : comfyState === 'offline' ? (comfy.error ?? '无法连接')
     : comfyState === 'not-configured' ? (comfy.hint ?? '')
+    : comfyState === 'error' ? (comfy.error ?? '请重启 dsh 加载新版路由')
     : ''
+  // 资产流水线（脚手架）：分镜 → 主角一致性 → 场景图/道具图。先搭 UI，真实生成后续接入（省 token）
+  const ASSET_STAGES = [
+    { id: 'character-sheet', label: '角色三视图', tmpl: 'character-sheet', hint: '模板已就绪：whale_optimize_prompt 套用' },
+    { id: 'scene-master', label: '场景主图', tmpl: 'scene-master', hint: '模板已就绪：scene-master' },
+    { id: 'props', label: '道具图', tmpl: 'shot-scene', hint: '待接入生成' },
+    { id: 'per-shot', label: '逐镜资产图', tmpl: 'shot-scene', hint: '与 shot-assets 阶段联动' },
+  ] as const
+  // 从运行事件里捞图片地址（master-asset/shot-assets 的 url 或 outputs）
+  const collectImages = (run: any): string[] => {
+    const out: string[] = []
+    for (const e of run.events ?? []) {
+      const d = e.detail
+      if (typeof d === 'string' && /^https?:/.test(d)) out.push(d)
+      else if (d && typeof d === 'object') {
+        if (typeof d.url === 'string' && /^https?:/.test(d.url)) out.push(d.url)
+        const outs = d.outputs ?? d.out
+        if (Array.isArray(outs)) for (const u of outs) if (typeof u === 'string' && /^https?:/.test(u)) out.push(u)
+      }
+    }
+    return out
+  }
+  const lastRun = runs[0] ?? null
+  const runImages = lastRun ? collectImages(lastRun) : []
+  const reviewEvents = lastRun ? (lastRun.events ?? []).filter((e: any) => e.type === 'review' || e.type === 'promote' || e.type === 'retry') : []
   return createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
     createElement('h2', null, '鲸影工作台 / Pipeline Workbench'),
     // ---- ComfyUI 常驻卡 ----
@@ -98,6 +124,33 @@ function WorkbenchPanel(_props: any): any {
       createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 2 } },
         createElement('strong', null, comfyTitle),
         createElement('span', { style: { fontSize: 12, opacity: 0.7 } }, comfyDetail || '本地 GPU 引擎，whale_comfyui_workflow 生成 workflow 后在此执行')),
+    ),
+    // ---- 资产流水线看板（脚手架，占位不真生成） ----
+    createElement('div', { style: { border: '1px solid rgba(0,0,0,.12)', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8 } },
+      createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+        createElement('strong', null, '资产流水线 / Asset Board'),
+        createElement('span', { style: { fontSize: 11, opacity: 0.5 } }, '脚手架：UI 先行，真实生成后续接入')),
+      createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 } },
+        ASSET_STAGES.map((a) => createElement('div', {
+          key: a.id,
+          style: { border: '1px dashed rgba(0,0,0,.18)', borderRadius: 8, padding: 8, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' },
+        },
+          createElement('div', { style: { width: 48, height: 48, borderRadius: 6, background: 'rgba(0,0,0,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 } },
+            a.id === 'character-sheet' ? '🧑' : a.id === 'scene-master' ? '🏞️' : a.id === 'props' ? '🎒' : '🎞️'),
+          createElement('span', { style: { fontSize: 12 } }, a.label),
+          createElement('span', { style: { fontSize: 10, opacity: 0.6, textAlign: 'center' } }, a.hint),
+        ))),
+      lastRun && (
+        createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
+          createElement('div', { style: { fontSize: 12, opacity: 0.8 } },
+            '最近一次运行「' + (lastRun.prompt ?? '').slice(0, 30) + '」产出图片: ' + runImages.length + ' 张' +
+            (reviewEvents.length ? ' · 一致性评审事件 ' + reviewEvents.length + ' 条' : '')),
+          runImages.length > 0 && createElement('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+            runImages.map((u: string, i: number) => createElement('img', { key: i, src: u, alt: 'asset' + i, style: { width: 64, height: 64, objectFit: 'cover', borderRadius: 6, border: '1px solid rgba(0,0,0,.1)' } }))),
+          createElement('span', { style: { fontSize: 11, opacity: 0.5 } },
+            '规划：分镜 → 主角三视图一致性校验 → 场景图/道具图 → 逐镜资产。真实生成待接入（有真实通道后开启，遵守成本护栏）。'),
+        )
+      ),
     ),
     runs.length === 0
       ? createElement('p', null, '暂无运行记录——在会话里调用 whale_generate_video 后，这里会显示七段流水线进度。')
