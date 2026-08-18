@@ -123,7 +123,27 @@ function WorkbenchPanel(_props: any): any {
       createElement('span', { style: { width: 10, height: 10, borderRadius: '50%', background: comfyColor, flexShrink: 0 } }),
       createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 2 } },
         createElement('strong', null, comfyTitle),
-        createElement('span', { style: { fontSize: 12, opacity: 0.7 } }, comfyDetail || '本地 GPU 引擎，whale_comfyui_workflow 生成 workflow 后在此执行')),
+        createElement('span', { style: { fontSize: 12, opacity: 0.7 } }, comfyDetail || '本地或远程 GPU 机地址皆可，填到「鲸影账号」即可')),
+    ),
+    // ---- 云引擎卡（不依赖 ComfyUI） ----
+    createElement('div', { style: { border: '1px solid rgba(0,0,0,.12)', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8 } },
+      createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+        createElement('strong', null, '云引擎 / Cloud Engines'),
+        createElement('span', { style: { fontSize: 11, opacity: 0.5 } }, '无需本地 GPU，与 ComfyUI 互不依赖')),
+      createElement('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+        [
+          { k: 'dashscope-wan', label: '万相视频', status: 'live', note: '✅ 真机出片' },
+          { k: 'tongyi-wanx', label: '万相生图', status: 'live', note: '✅ 真图' },
+          { k: 'doubao', label: '豆包 Seedance', status: 'key', note: '🔑 等 ARK key' },
+          { k: 'kling', label: '可灵', status: 'key', note: '🔑 等 key' },
+          { k: 'jimeng', label: '即梦', status: 'warn', note: '⚠️ 队列满' },
+        ].map((e) => createElement('span', {
+          key: e.k,
+          style: { padding: '4px 10px', borderRadius: 999, fontSize: 12, border: '1px solid rgba(0,0,0,.12)',
+            background: e.status === 'live' ? 'rgba(46,160,67,.12)' : e.status === 'key' ? 'rgba(255,171,0,.12)' : 'rgba(200,60,60,.1)' },
+        }, e.label + ' ' + e.note))),
+      createElement('span', { style: { fontSize: 11, opacity: 0.5 } },
+        '自动化（workflow 生成 / 资产板）纯本地可用，不依赖任何引擎；只有"执行出图"才需要选一个引擎。'),
     ),
     // ---- 资产流水线看板（脚手架，占位不真生成） ----
     createElement('div', { style: { border: '1px solid rgba(0,0,0,.12)', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8 } },
