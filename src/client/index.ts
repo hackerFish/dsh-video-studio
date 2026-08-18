@@ -117,8 +117,19 @@ function WorkbenchPanel(_props: any): any {
   const lastRun = runs[0] ?? null
   const runImages = lastRun ? collectImages(lastRun) : []
   const reviewEvents = lastRun ? (lastRun.events ?? []).filter((e: any) => e.type === 'review' || e.type === 'promote' || e.type === 'retry') : []
-  return createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
-    createElement('h2', null, '鲸影工作台 / Pipeline Workbench · ' + WHALE_BUILD),
+  const [full, setFull] = useState(false)
+  const fullStyle = full
+    ? { position: 'fixed' as const, inset: 0, zIndex: 9990, background: 'var(--ds-surface, #fafafa)', overflow: 'auto', padding: '20px 28px 60px' }
+    : {}
+  const innerStyle = full ? { maxWidth: 1200, margin: '0 auto', display: 'flex', flexDirection: 'column' as const, gap: 16 } : { display: 'flex', flexDirection: 'column' as const, gap: 16 }
+  return createElement('div', { style: fullStyle },
+    createElement('div', { style: innerStyle },
+    createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+      createElement('h2', { style: { margin: 0 } }, '鲸影工作台 / Pipeline Workbench · ' + WHALE_BUILD),
+      createElement('button', {
+        onClick: () => setFull(!full),
+        style: { border: '1px solid rgba(0,0,0,.2)', borderRadius: 8, padding: '4px 14px', background: full ? 'rgba(200,60,60,.08)' : 'rgba(65,118,230,.08)', cursor: 'pointer', fontSize: 13 },
+      }, full ? '✕ 退出全屏' : '⛶ 全屏工坊')),
     // ---- ComfyUI 常驻卡 ----
     createElement('div', { style: { border: '1px solid rgba(0,0,0,.12)', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 } },
       createElement('span', { style: { width: 10, height: 10, borderRadius: '50%', background: comfyColor, flexShrink: 0 } }),
@@ -201,7 +212,8 @@ function WorkbenchPanel(_props: any): any {
               '事件: ' + (run.events ?? []).map((e: any) => e.stage + '.' + e.type).join(' → ')),
           )
         }),
-  )
+      ),
+    )
 }
 
 // 分镜工坊：大纲+角色 → 顶级提示词卡与逐镜提示词 → 一键生成（纯本地拆解，成本护栏）
