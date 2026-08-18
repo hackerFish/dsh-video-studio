@@ -116,5 +116,39 @@ export function apply(ctx: any): void {
         }
       },
     }), 'dsh-video-studio: accounts route')
+    host.effect(() => host.webServer.register({
+      kind: 'exact',
+      path: '/dsh-video-studio/comfyui',
+      handler: async (_request: any, response: any) => {
+        // ComfyUI 常驻状态：未配置 / 在线（GPU+队列）/ 离线（错误）——工作台无任务时也展示
+        try {
+          const accounts = vault().list()
+          const cfg = accounts.find((a) => a.provider === 'comfyui')
+          if (!cfg) {
+            sendJson(response, 200, { ok: false, state: 'not-configured', hint: '在「鲸影账号」添加 comfyui，凭证填 http://127.0.0.1:8188' })
+            return
+          }
+          const full = vault().get(cfg.id)
+          if (!full) throw new Error('comfyui 账号读取失败')
+          const { providerForAccount } = await import('./account-providers.ts')
+          const p = providerForAccount({ id: full.id, provider: full.provider, credential: full.credential })
+          const h = await p.health()
+          if (!h.ok) {
+            sendJson(response, 200, { ok: false, state: 'offline', baseUrl: full.credential, error: h.error ?? '无法连接' })
+            return
+          }
+          // 队列深度（running/pending）
+          let queue = { running: 0, pending: 0 }
+          try {
+            const base = typeof full.credential === 'string' && !full.credential.startsWith('{') ? full.credential : (() => { try { return (JSON.parse(full.credential) as { baseUrl?: string }).baseUrl ?? 'http://127.0.0.1:8188' } catch { return 'http://127.0.0.1:8188' } })()
+            const q = await (await fetch(`${base}/queue`, { signal: AbortSignal.timeout(8000) })).json() as { queue_running?: unknown[]; queue_pending?: unknown[] }
+            queue = { running: q.queue_running?.length ?? 0, pending: q.queue_pending?.length ?? 0 }
+          } catch { /* 队列读取失败不影响在线状态 */ }
+          sendJson(response, 200, { ok: true, state: 'online', baseUrl: full.credential, gpu: h.gpu ?? 'unknown', queue })
+        } catch (e) {
+          sendJson(response, 200, { ok: false, state: 'error', error: String(e instanceof Error ? e.message : e) })
+        }
+      },
+    }), 'dsh-video-studio: comfyui route')
   })
 }

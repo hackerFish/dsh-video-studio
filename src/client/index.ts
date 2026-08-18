@@ -57,6 +57,7 @@ const WHALE_STAGE_LABELS: Record<string, string> = {
 
 function WorkbenchPanel(_props: any): any {
   const [doc, setDoc] = useState<any>(null)
+  const [comfy, setComfy] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     let alive = true
@@ -65,6 +66,10 @@ function WorkbenchPanel(_props: any): any {
         .then((r: any) => r.json())
         .then((d: any) => { if (alive) setDoc(d) })
         .catch((e: unknown) => { if (alive) setError(String((e as Error)?.message ?? e)) })
+      fetch('/dsh-video-studio/comfyui', { cache: 'no-store' })
+        .then((r: any) => r.json())
+        .then((d: any) => { if (alive) setComfy(d) })
+        .catch(() => { if (alive) setComfy({ state: 'error', error: 'comfyui 路由不可达' }) })
     }
     load()
     const timer = setInterval(load, 3000)
@@ -73,10 +78,29 @@ function WorkbenchPanel(_props: any): any {
   if (error) return createElement('p', { role: 'alert' }, '工作台读取失败: ' + error)
   if (!doc) return createElement('p', { role: 'status' }, '正在读取运行记录…')
   const runs = doc.runs ?? []
+  // ComfyUI 常驻状态卡：无任务时也展示（在线/离线/未配置）
+  const comfyState = comfy?.state ?? 'loading'
+  const comfyColor = comfyState === 'online' ? '#2ea043' : comfyState === 'offline' ? '#c83c3c' : 'rgba(0,0,0,.45)'
+  const comfyTitle = comfyState === 'online' ? 'ComfyUI 在线'
+    : comfyState === 'offline' ? 'ComfyUI 离线'
+    : comfyState === 'not-configured' ? 'ComfyUI 未配置'
+    : 'ComfyUI 状态读取中…'
+  const comfyDetail = comfyState === 'online'
+    ? `GPU: ${comfy.gpu ?? 'unknown'} · 队列 运行${comfy.queue?.running ?? 0}/等待${comfy.queue?.pending ?? 0}`
+    : comfyState === 'offline' ? (comfy.error ?? '无法连接')
+    : comfyState === 'not-configured' ? (comfy.hint ?? '')
+    : ''
   return createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
     createElement('h2', null, '鲸影工作台 / Pipeline Workbench'),
+    // ---- ComfyUI 常驻卡 ----
+    createElement('div', { style: { border: '1px solid rgba(0,0,0,.12)', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 } },
+      createElement('span', { style: { width: 10, height: 10, borderRadius: '50%', background: comfyColor, flexShrink: 0 } }),
+      createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 2 } },
+        createElement('strong', null, comfyTitle),
+        createElement('span', { style: { fontSize: 12, opacity: 0.7 } }, comfyDetail || '本地 GPU 引擎，whale_comfyui_workflow 生成 workflow 后在此执行')),
+    ),
     runs.length === 0
-      ? createElement('p', null, '暂无运行记录——在会话里调用 whale_generate_video 后，这里会显示六段流水线进度。')
+      ? createElement('p', null, '暂无运行记录——在会话里调用 whale_generate_video 后，这里会显示七段流水线进度。')
       : runs.map((run: any) => {
           const doneStages = new Set((run.events ?? []).map((e: any) => e.stage))
           const lastStage = (run.events ?? []).slice(-1)[0]?.stage ?? null
