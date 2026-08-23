@@ -65,10 +65,59 @@ export function buildWorkflow(opts: BuildWorkflowOptions = {}): Workflow {
 export function validateWorkflow(wf: Workflow): string[] {
   const errors: string[] = []
   if (!wf || typeof wf !== 'object' || Array.isArray(wf)) return ['workflow 必须是节点对象']
+  const walk = (v: unknown, nid: string): void => {
+    if (typeof v === 'string' && v.includes('REPLACE_')) errors.push(`节点 ${nid} 含未替换占位: ${v}`)
+    else if (Array.isArray(v)) v.forEach((x) => walk(x, nid))
+    else if (v && typeof v === 'object') Object.values(v as Record<string, unknown>).forEach((x) => walk(x, nid))
+  }
   for (const [nid, node] of Object.entries(wf)) {
     if (!node || typeof node.class_type !== 'string' || !node.class_type) errors.push(`节点 ${nid} 缺 class_type`)
     if (node.class_type.includes('REPLACE_')) errors.push(`节点 ${nid} 含未替换占位: ${node.class_type}`)
     if (node.inputs && typeof node.inputs !== 'object') errors.push(`节点 ${nid} inputs 非法`)
+    if (node.inputs) walk(node.inputs, nid)
   }
   return errors
+}
+
+/** 文生图模板（角色三视图/场景/道具通用）：ckpt → 正负 CLIP → EmptyLatent → KSampler → VAE → SaveImage。 */
+export const IMAGE_TEMPLATE: Workflow = {
+  '1': { class_type: 'CheckpointLoaderSimple', inputs: { ckpt_name: '{{checkpoint}}' } },
+  '2': { class_type: 'CLIPTextEncode', inputs: { text: '{{positive}}', clip: ['1', 1] } },
+  '3': { class_type: 'CLIPTextEncode', inputs: { text: '{{negative}}', clip: ['1', 1] } },
+  '4': { class_type: 'EmptyLatentImage', inputs: { width: '{{width}}', height: '{{height}}', batch_size: 1 } },
+  '5': { class_type: 'KSampler', inputs: {
+    seed: '{{seed}}', steps: '{{steps}}', cfg: '{{cfg}}', sampler_name: '{{sampler}}', scheduler: '{{scheduler}}',
+    denoise: 1, model: ['1', 0], positive: ['2', 0], negative: ['3', 0], latent_image: ['4', 0],
+  } },
+  '6': { class_type: 'VAEDecode', inputs: { samples: ['5', 0], vae: ['1', 2] } },
+  '7': { class_type: 'SaveImage', inputs: { filename_prefix: 'whale/{{shotId}}', images: ['6', 0] } },
+}
+
+export interface BuildImageWorkflowOptions {
+  checkpoint?: string
+  positive?: string
+  negative?: string
+  width?: number
+  height?: number
+  steps?: number
+  cfg?: number
+  sampler?: string
+  scheduler?: string
+  seed?: number
+  shotId?: string
+}
+
+/** 角色三视图/单图通用文生图 workflow（本地 ComfyUI 执行）。 */
+export function buildImageWorkflow(opts: BuildImageWorkflowOptions = {}): Workflow {
+  const {
+    checkpoint, positive = '', negative = '',
+    width = 1024, height = 1024, steps = 30, cfg = 7,
+    sampler = 'euler', scheduler = 'normal', seed, shotId = 'character-sheet',
+  } = opts
+  const vars: Vars = {
+    checkpoint: checkpoint ?? 'REPLACE_WITH_CHECKPOINT_NAME',
+    positive, negative, width, height, steps, cfg, sampler, scheduler,
+    seed: seed ?? Math.floor(Math.random() * 1e9), shotId,
+  }
+  return Object.fromEntries(Object.entries(IMAGE_TEMPLATE).map(([nid, node]) => [nid, applyVars(node, vars)]))
 }

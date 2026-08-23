@@ -5,7 +5,8 @@ import { join } from 'node:path'
 import { mergePromptLayers } from '../prompts/style-dna.ts'
 import { optimizePrompt } from '../prompts/optimizer.ts'
 import { applyTemplate, listTemplates } from '../prompts/templates.ts'
-import { buildWorkflow, validateWorkflow } from '../director/workflow-builder.ts'
+import { buildWorkflow, validateWorkflow, buildImageWorkflow } from '../director/workflow-builder.ts'
+import { buildCharacterPrompt, buildShotPrompt } from './storyboard.ts'
 import { listStoryPresets, getStoryPreset, presetToScript } from '../content/presets.ts'
 import { buildAudit } from '../selfaudit/audit.ts'
 import { runtimePool, persistPool } from './runtime.ts'
@@ -231,6 +232,39 @@ export function registerTools(ctx: any): void {
         finishRun(run.id, 'failed')
         return { ok: false, status: 'failed', message: String(e instanceof Error ? e.message : e).slice(0, 300) }
       }
+    },
+  })
+
+  ctx.tools.register({
+    name: 'whale_comfyui_character',
+    description: '生成"角色三视图"的本地 ComfyUI workflow：名字/描述/风格 → 顶级三视图提示词（模板+增益）→ 可直接提交 /prompt 的 workflow JSON。模型需已装入 ComfyUI models/checkpoints/（checkpoint 参数可指定）。',
+    parameters: {
+      name: { type: 'string', required: true, description: '角色名' },
+      description: { type: 'string', required: false, description: '角色外观描述' },
+      style: { type: 'string', required: false, description: '风格，如 3D 国漫仙侠' },
+      checkpoint: { type: 'string', required: false, description: 'ComfyUI 里已装的 checkpoint 文件名（不填则占位）' },
+      width: { type: 'integer', required: false },
+      height: { type: 'integer', required: false },
+    },
+    output: {
+      schema: {
+        type: 'object', additionalProperties: false,
+        properties: {
+          ok: { type: 'boolean', required: true },
+          prompt: { type: 'string', required: true },
+          workflow: { type: 'object', required: true, additionalProperties: true },
+          issues: { type: 'array', required: true, items: { type: 'string' } },
+          note: { type: 'string', required: true },
+        },
+      },
+      render: (_args: unknown, value: { ok: boolean; prompt: string; issues: string[] }) =>
+        [{ type: 'text', text: value.ok ? `三视图提示词已生成（${value.prompt.length} 字），workflow ${value.issues.length ? '有 ' + value.issues.length + ' 个待办：' + value.issues.join('；') : '可直接提交'}` : '生成失败' }],
+    },
+    execute(args: { name: string; description?: string; style?: string; checkpoint?: string; width?: number; height?: number }) {
+      const c = buildCharacterPrompt({ name: String(args.name), description: String(args.description ?? '') }, args.style)
+      const wf = buildImageWorkflow({ positive: c.prompt, negative: c.negative.join('，'), checkpoint: args.checkpoint, width: args.width, height: args.height, shotId: 'char-' + args.name })
+      const issues = validateWorkflow(wf)
+      return Promise.resolve({ ok: true, prompt: c.prompt, workflow: wf, issues, note: '提交：POST /prompt {prompt: workflow}；模型放 ComfyUI models/checkpoints/ 后 checkpoint 参数填文件名' })
     },
   })
 
