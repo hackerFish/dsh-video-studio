@@ -1,4 +1,4 @@
-﻿// Whale client half (P1): "鲸影" tab in Plugins settings, fed by the /dsh-video-studio/health host route.
+// Whale client half (P1): "鲸影" tab in Plugins settings, fed by the /dsh-video-studio/health host route.
 // Registration pattern mirrors the shipped dsh-recommend plugin (settings.plugins.tab, verified shape).
 // NOTE: React is provided by the DSH client runtime; this source gets bundled to lib/client.js on publish.
 
@@ -61,6 +61,8 @@ function WorkbenchPanel(_props: any): any {
   const [doc, setDoc] = useState<any>(null)
   const [comfy, setComfy] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
+  const [full, setFull] = useState(false)
+  const [view, setView] = useState<'cards' | 'flow'>('cards')
   useEffect(() => {
     let alive = true
     const load = () => {
@@ -118,8 +120,6 @@ function WorkbenchPanel(_props: any): any {
   const lastRun = runs[0] ?? null
   const runImages = lastRun ? collectImages(lastRun) : []
   const reviewEvents = lastRun ? (lastRun.events ?? []).filter((e: any) => e.type === 'review' || e.type === 'promote' || e.type === 'retry') : []
-  const [full, setFull] = useState(false)
-  const [view, setView] = useState<'cards' | 'flow'>('cards')
   const fullStyle = full
     ? { position: 'fixed' as const, inset: 0, zIndex: 9990, background: 'var(--ds-surface, #fafafa)', overflow: 'auto', padding: '20px 28px 60px' }
     : {}
