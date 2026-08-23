@@ -11,6 +11,7 @@ import { applyTemplate, listTemplates } from '../prompts/templates.ts'
 import { providerForAccount } from './account-providers.ts'
 import type { ProviderStatus } from '../provider.ts'
 import { buildStoryboard } from './storyboard.ts'
+import { buildImageWorkflow } from '../director/workflow-builder.ts'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -270,6 +271,53 @@ export function apply(ctx: any): void {
     }), 'dsh-video-studio: comfyui route')
     host.effect(() => host.webServer.register({
       kind: 'exact',
+      path: '/dsh-video-studio/comfyui/nodes',
+      handler: async (_request: any, response: any) => {
+        // 代理 ComfyUI /object_info：节点类型库 + checkpoint 列表（供画布侧栏渲染，绕开跨域）
+        try {
+          const accounts = vault().list()
+          const cfg = accounts.find((a) => a.provider === 'comfyui')
+          const full = cfg ? vault().get(cfg.id) : null
+          const raw = full?.credential ?? 'http://127.0.0.1:8188'
+          const base = raw.startsWith('{') ? (JSON.parse(raw) as { baseUrl?: string }).baseUrl ?? 'http://127.0.0.1:8188' : raw
+          const oi = await (await fetch(`${base}/object_info`, { signal: AbortSignal.timeout(30000) })).json() as Record<string, any>
+          const pick = (node: any, key: string): string[] => {
+            const v = node?.input?.required?.[key]
+            return Array.isArray(v) && Array.isArray(v[0]) ? v[0].filter((x: unknown) => typeof x === 'string') : []
+          }
+          const ckpt = oi.CheckpointLoaderSimple ? pick(oi.CheckpointLoaderSimple, 'ckpt_name') : []
+          const types = Object.keys(oi)
+            .filter((k) => oi[k]?.input?.required)
+            .slice(0, 200)
+          sendJson(response, 200, { ok: true, base, checkpoints: ckpt, nodeTypes: types })
+        } catch (e) {
+          sendJson(response, 200, { ok: false, error: String(e instanceof Error ? e.message : e) })
+        }
+      },
+    }), 'dsh-video-studio: comfyui nodes route')
+    host.effect(() => host.webServer.register({
+      kind: 'exact',
+      path: '/dsh-video-studio/comfyui/queue',
+      handler: async (_request: any, response: any) => {
+        // 代理 /queue：运行中/等待队列（画布侧栏实时面板）
+        try {
+          const accounts = vault().list()
+          const cfg = accounts.find((a) => a.provider === 'comfyui')
+          const full = cfg ? vault().get(cfg.id) : null
+          const raw = full?.credential ?? 'http://127.0.0.1:8188'
+          const base = raw.startsWith('{') ? (JSON.parse(raw) as { baseUrl?: string }).baseUrl ?? 'http://127.0.0.1:8188' : raw
+          const q = await (await fetch(`${base}/queue`, { signal: AbortSignal.timeout(10000) })).json() as { queue_running?: unknown[][]; queue_pending?: unknown[][] }
+          sendJson(response, 200, {
+            ok: true, running: (q.queue_running ?? []).map((x) => String(x[1] ?? '').slice(0, 8)),
+            pending: (q.queue_pending ?? []).map((x) => String(x[1] ?? '').slice(0, 8)),
+          })
+        } catch (e) {
+          sendJson(response, 200, { ok: false, error: String(e instanceof Error ? e.message : e) })
+        }
+      },
+    }), 'dsh-video-studio: comfyui queue route')
+    host.effect(() => host.webServer.register({
+      kind: 'exact',
       path: '/dsh-video-studio/comfyui/import',
       handler: async (request: any, response: any) => {
         // 把工作流 JSON 写入 ComfyUI 的 workflows 目录 → ComfyUI 界面「工作流」里实时可见可加载
@@ -298,8 +346,16 @@ export function apply(ctx: any): void {
         // 提交工作流到 ComfyUI /prompt → 轮询 /history → 回结果图（ComfyUI 界面会实时显示队列与预览）
         try {
           const body = tryJson(await readBody(request)) ?? {}
-          const wf = body.workflow ?? body
-          if (!wf || typeof wf !== 'object') { sendJson(response, 400, { ok: false, error: '缺少 workflow' }); return }
+          // 两种入参：{workflow} 直接提交；{prompt, checkpoint} 由宿主用 buildImageWorkflow 组装后提交
+          let wf = body.workflow ?? null
+          if (!wf && body.prompt) {
+            wf = buildImageWorkflow({
+              positive: String(body.prompt), checkpoint: body.checkpoint ? String(body.checkpoint) : undefined,
+              width: body.width ? Number(body.width) : 768, height: body.height ? Number(body.height) : 768,
+              steps: body.steps ? Number(body.steps) : 25, shotId: 'whale-' + Date.now(),
+            })
+          }
+          if (!wf || typeof wf !== 'object') { sendJson(response, 400, { ok: false, error: '缺少 workflow 或 prompt' }); return }
           const accounts = vault().list()
           const cfg = accounts.find((a) => a.provider === 'comfyui')
           const full = cfg ? vault().get(cfg.id) : null
