@@ -1,8 +1,9 @@
-// Whale client half (P1): "鲸影" tab in Plugins settings, fed by the /dsh-video-studio/health host route.
+﻿// Whale client half (P1): "鲸影" tab in Plugins settings, fed by the /dsh-video-studio/health host route.
 // Registration pattern mirrors the shipped dsh-recommend plugin (settings.plugins.tab, verified shape).
 // NOTE: React is provided by the DSH client runtime; this source gets bundled to lib/client.js on publish.
 
 import { useState, useEffect, createElement } from 'react'
+import { WhaleFlow } from './flow.ts'
 
 export const inject = ['slots']
 
@@ -118,18 +119,35 @@ function WorkbenchPanel(_props: any): any {
   const runImages = lastRun ? collectImages(lastRun) : []
   const reviewEvents = lastRun ? (lastRun.events ?? []).filter((e: any) => e.type === 'review' || e.type === 'promote' || e.type === 'retry') : []
   const [full, setFull] = useState(false)
+  const [view, setView] = useState<'cards' | 'flow'>('cards')
   const fullStyle = full
     ? { position: 'fixed' as const, inset: 0, zIndex: 9990, background: 'var(--ds-surface, #fafafa)', overflow: 'auto', padding: '20px 28px 60px' }
     : {}
-  const innerStyle = full ? { maxWidth: 1200, margin: '0 auto', display: 'flex', flexDirection: 'column' as const, gap: 16 } : { display: 'flex', flexDirection: 'column' as const, gap: 16 }
-  return createElement('div', { style: fullStyle },
-    createElement('div', { style: innerStyle },
-    createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-      createElement('h2', { style: { margin: 0 } }, '鲸影工作台 / Pipeline Workbench · ' + WHALE_BUILD),
+  const headerRow = (extra?: any) => createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 } },
+    createElement('h2', { style: { margin: 0 } }, '鲸影工作台 / Pipeline Workbench · ' + WHALE_BUILD),
+    createElement('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
+      extra,
+      full && createElement('button', {
+        onClick: () => setView(view === 'cards' ? 'flow' : 'cards'),
+        style: { border: '1px solid rgba(0,0,0,.2)', borderRadius: 8, padding: '4px 14px', background: view === 'flow' ? 'rgba(124,58,237,.12)' : 'rgba(0,0,0,.04)', cursor: 'pointer', fontSize: 13 },
+      }, view === 'flow' ? '▦ 卡片视图' : '🕸 节点视图'),
       createElement('button', {
         onClick: () => setFull(!full),
         style: { border: '1px solid rgba(0,0,0,.2)', borderRadius: 8, padding: '4px 14px', background: full ? 'rgba(200,60,60,.08)' : 'rgba(65,118,230,.08)', cursor: 'pointer', fontSize: 13 },
       }, full ? '✕ 退出全屏' : '⛶ 全屏工坊')),
+  )
+  if (full && view === 'flow') {
+    return createElement('div', { style: fullStyle },
+      createElement('div', { style: { maxWidth: 1500, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12 } },
+        headerRow(createElement('span', { style: { fontSize: 12, opacity: 0.6 } }, '节点 = 流水线七段；连线 = 数据流；每节点可单独运行')),
+        createElement('div', { style: { height: 'calc(100vh - 120px)', border: '1px solid rgba(0,0,0,.1)', borderRadius: 12, overflow: 'hidden' } },
+          createElement(WhaleFlow, null))),
+    )
+  }
+  const innerStyle = full ? { maxWidth: 1200, margin: '0 auto', display: 'flex', flexDirection: 'column' as const, gap: 16 } : { display: 'flex', flexDirection: 'column' as const, gap: 16 }
+  return createElement('div', { style: fullStyle },
+    createElement('div', { style: innerStyle },
+    headerRow(),
     // ---- ComfyUI 常驻卡 ----
     createElement('div', { style: { border: '1px solid rgba(0,0,0,.12)', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 } },
       createElement('span', { style: { width: 10, height: 10, borderRadius: '50%', background: comfyColor, flexShrink: 0 } }),

@@ -42,5 +42,8 @@
     "react-dom": "^19.2.8",
     "tsup": "^8.5.1",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@xyflow/react": "^12.11.3"
   }
 }
