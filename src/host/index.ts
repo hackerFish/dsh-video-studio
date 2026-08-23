@@ -11,6 +11,8 @@ import { applyTemplate, listTemplates } from '../prompts/templates.ts'
 import { providerForAccount } from './account-providers.ts'
 import type { ProviderStatus } from '../provider.ts'
 import { buildStoryboard } from './storyboard.ts'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 
 export const name = 'dsh-video-studio'
 
@@ -266,5 +268,80 @@ export function apply(ctx: any): void {
         }
       },
     }), 'dsh-video-studio: comfyui route')
+    host.effect(() => host.webServer.register({
+      kind: 'exact',
+      path: '/dsh-video-studio/comfyui/import',
+      handler: async (request: any, response: any) => {
+        // 把工作流 JSON 写入 ComfyUI 的 workflows 目录 → ComfyUI 界面「工作流」里实时可见可加载
+        try {
+          const body = tryJson(await readBody(request)) ?? {}
+          const wf = body.workflow ?? body
+          const name = String(body.name ?? 'whale-' + Date.now())
+          if (!wf || typeof wf !== 'object') { sendJson(response, 400, { ok: false, error: '缺少 workflow' }); return }
+          const dirs = [process.env.DSH_COMFYUI_WORKFLOWS_DIR, 'D:/CY/comfyUI/opc/workflows', 'D:/CY/ComfyUI/opc/workflows'].filter(Boolean) as string[]
+          let dir = dirs.find((d) => existsSync(d))
+          if (!dir) { sendJson(response, 200, { ok: false, error: '未找到 ComfyUI workflows 目录（可设 DSH_COMFYUI_WORKFLOWS_DIR）' }); return }
+          const { mkdirSync, writeFileSync } = await import('node:fs')
+          mkdirSync(dir, { recursive: true })
+          const file = join(dir, `${name}.json`)
+          writeFileSync(file, JSON.stringify(wf, null, 2))
+          sendJson(response, 200, { ok: true, path: file, hint: '已写入 ComfyUI 工作流目录，打开 ComfyUI 界面 → 工作流 即可看到并可加载编辑' })
+        } catch (e) {
+          sendJson(response, 400, { ok: false, error: e instanceof Error ? e.message : String(e) })
+        }
+      },
+    }), 'dsh-video-studio: comfyui import route')
+    host.effect(() => host.webServer.register({
+      kind: 'exact',
+      path: '/dsh-video-studio/comfyui/run',
+      handler: async (request: any, response: any) => {
+        // 提交工作流到 ComfyUI /prompt → 轮询 /history → 回结果图（ComfyUI 界面会实时显示队列与预览）
+        try {
+          const body = tryJson(await readBody(request)) ?? {}
+          const wf = body.workflow ?? body
+          if (!wf || typeof wf !== 'object') { sendJson(response, 400, { ok: false, error: '缺少 workflow' }); return }
+          const accounts = vault().list()
+          const cfg = accounts.find((a) => a.provider === 'comfyui')
+          const full = cfg ? vault().get(cfg.id) : null
+          const raw = full?.credential ?? 'http://127.0.0.1:8188'
+          const base = raw.startsWith('{') ? (JSON.parse(raw) as { baseUrl?: string }).baseUrl ?? 'http://127.0.0.1:8188' : raw
+          const r = await fetch(`${base}/prompt`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: wf, client_id: 'whale-' + Date.now() }),
+            signal: AbortSignal.timeout(30000),
+          })
+          const j = await r.json().catch(() => ({})) as { prompt_id?: string; error?: unknown }
+          if (!r.ok || !j.prompt_id) {
+            sendJson(response, 200, { ok: false, status: 'submit-error', error: JSON.stringify(j.error ?? (await r.text()).slice(0, 200)) })
+            return
+          }
+          const pid = j.prompt_id
+          const deadline = Date.now() + 180000
+          let url: string | null = null
+          while (Date.now() < deadline) {
+            await new Promise((res) => setTimeout(res, 3000))
+            try {
+              const h = await (await fetch(`${base}/history/${pid}`, { signal: AbortSignal.timeout(10000) })).json() as Record<string, any>
+              const entry = h[pid]
+              if (entry?.status?.status_str === 'error') {
+                sendJson(response, 200, { ok: false, status: 'failed', error: JSON.stringify(entry.status?.messages ?? '生成错误') })
+                return
+              }
+              for (const outputs of Object.values(entry?.outputs ?? {})) {
+                const list = Array.isArray(outputs) ? outputs : Object.values(outputs ?? {})
+                for (const o of list.flat()) {
+                  const item = o as { filename?: string; subfolder?: string; type?: string } | null
+                  if (item?.filename) { url = `${base}/view?filename=${encodeURIComponent(item.filename)}&subfolder=${item.subfolder ?? ''}&type=${item.type ?? 'output'}` }
+                }
+              }
+              if (url) break
+            } catch { /* 继续轮询 */ }
+          }
+          sendJson(response, 200, url ? { ok: true, url, promptId: pid, hint: 'ComfyUI 界面队列/历史中可见本任务' } : { ok: false, status: 'timeout', error: '3 分钟未完成（无模型时会卡在此，请先装 checkpoint）' })
+        } catch (e) {
+          sendJson(response, 400, { ok: false, error: e instanceof Error ? e.message : String(e) })
+        }
+      },
+    }), 'dsh-video-studio: comfyui run route')
   })
 }
