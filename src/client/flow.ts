@@ -98,17 +98,69 @@ export function WhaleFlow(_props: any): any {
     { id: 'e4', source: 'per-shot', target: 'video', markerEnd: { type: MarkerType.ArrowClosed } },
     { id: 'e5', source: 'video', target: 'final-cut', markerEnd: { type: MarkerType.ArrowClosed } },
   ]
-  const [nodes, , onNodesChange] = useNodesState(initNodes)
-  const [edges, , onEdgesChange] = useEdgesState(initEdges)
-  return createElement('div', { style: { width: '100%', height: '100%', minHeight: 640, position: 'relative' } },
+  const [nodes, setNodes, onNodesChange] = useNodesState(initNodes)
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initEdges)
+  const addNode = () => {
+    const id = 'custom-' + Date.now()
+    setNodes((nds: any[]) => [...nds, {
+      id, type: 'stage', position: { x: 120 + Math.random() * 240, y: 60 + Math.random() * 200 },
+      data: { stage: 'per-shot', label: '自定义节点', icon: '🔧', prompt: '自定义提示词', onResult, onDelete: () => setNodes((cur: any[]) => cur.filter((n) => n.id !== id)) },
+    }])
+  }
+  const exportJson = () => {
+    const payload = { kind: 'whale-flow', version: 1, nodes: nodes.map((n: any) => ({ id: n.id, stage: n.data?.stage, label: n.data?.label, prompt: n.data?.prompt, x: n.position?.x, y: n.position?.y })), edges: edges.map((e: any) => ({ id: e.id, source: e.source, target: e.target })) }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'whale-workflow.json'; a.click()
+  }
+  const importJson = (ev: any) => {
+    const file = ev.target?.files?.[0]; if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const j = JSON.parse(String(reader.result))
+        // 兼容 ComfyUI workflow：{nodeId: {class_type, inputs}} 形态
+        const comfy = j && !Array.isArray(j) && !j.kind && Object.values(j).every((v: any) => v && typeof v === 'object' && v.class_type)
+        if (comfy) {
+          const imported = Object.entries(j).map(([id, v]: [string, any], i: number) => {
+            const inputs = v.inputs ?? {}
+            const promptVal = Object.values(inputs).find((x) => typeof x === 'string') ?? v.class_type
+            return {
+              id: 'comfy-' + id, type: 'stage', position: { x: (i % 3) * 320, y: Math.floor(i / 3) * 200 },
+              data: { stage: 'per-shot', label: String(v.class_type ?? '节点'), icon: '🧩', prompt: String(promptVal), onResult, onDelete: () => setNodes((cur: any[]) => cur.filter((n) => n.id !== 'comfy-' + id)) },
+            }
+          })
+          setNodes(imported)
+          setEdges([])
+        } else if (j.kind === 'whale-flow') {
+          const imported = (j.nodes ?? []).map((n: any) => ({ id: n.id, type: 'stage', position: { x: n.x ?? 0, y: n.y ?? 0 }, data: { stage: n.stage ?? 'per-shot', label: n.label ?? '节点', icon: '🔧', prompt: n.prompt ?? '', onResult, onDelete: () => setNodes((cur: any[]) => cur.filter((x) => x.id !== n.id)) } }))
+          setNodes(imported)
+          setEdges((j.edges ?? []).map((e: any) => ({ id: e.id, source: e.source, target: e.target, markerEnd: { type: MarkerType.ArrowClosed } })))
+        }
+      } catch (e) { window.alert('导入失败: ' + String((e as Error)?.message ?? e)) }
+      ev.target.value = ''
+    }
+    reader.readAsText(file)
+  }
+  const toolbarBtn = { border: '1px solid rgba(0,0,0,.2)', borderRadius: 6, background: '#fff', cursor: 'pointer', padding: '3px 10px', fontSize: 12 }
+  return createElement('div', { style: { width: '100%', height: '100%', minHeight: 640, position: 'relative', display: 'flex', flexDirection: 'column' } },
     createElement('style', null, FLOW_CSS),
-    createElement(ReactFlow, {
-      nodes, edges, nodeTypes: NODE_TYPES as any,
-      onNodesChange, onEdgesChange,
-      fitView: true, fitViewOptions: { padding: 0.2 }, minZoom: 0.3, maxZoom: 1.6,
-    },
-      createElement(Background, { gap: 24 }),
-      createElement(Controls, null),
+    createElement('div', { style: { display: 'flex', gap: 8, padding: '6px 8px', borderBottom: '1px solid rgba(0,0,0,.08)', alignItems: 'center' } },
+      createElement('button', { onClick: addNode, style: toolbarBtn }, '＋ 添加节点'),
+      createElement('button', { onClick: exportJson, style: toolbarBtn }, '⬇ 导出 JSON'),
+      createElement('label', { style: toolbarBtn, cursor: 'pointer' },
+        '⬆ 导入 JSON（兼容 ComfyUI workflow）',
+        createElement('input', { type: 'file', accept: '.json', onChange: importJson, style: { display: 'none' } })),
+      createElement('span', { style: { fontSize: 11, opacity: 0.55 } }, '节点=生成步骤；ComfyUI workflow 可导入为节点；连线=数据流'),
+    ),
+    createElement('div', { style: { flex: 1, position: 'relative' } },
+      createElement(ReactFlow, {
+        nodes, edges, nodeTypes: NODE_TYPES as any,
+        onNodesChange, onEdgesChange,
+        fitView: true, fitViewOptions: { padding: 0.2 }, minZoom: 0.3, maxZoom: 1.6,
+      },
+        createElement(Background, { gap: 24 }),
+        createElement(Controls, null),
+      ),
     ),
   )
 }
