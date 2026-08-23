@@ -44,32 +44,33 @@ function StageNode({ data, selected }: any): any {
   }, [prompt, data])
   const r = data.result
   return createElement('div', {
+    className: 'whale-node',
     style: {
       width: 280, border: selected ? '2px solid #4176e6' : '1px solid #d0d5dd', borderRadius: 12,
-      background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,.08)', padding: 12, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13,
+      background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,.08)', padding: 12, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: '#111',
     },
   },
     createElement(Handle, { type: 'target', position: Position.Top }),
-    createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-      createElement('strong', { style: { fontSize: 13 } }, data.icon + ' ' + data.label),
-      createElement('span', { style: { fontSize: 10, opacity: 0.5 } }, data.stage)),
+    createElement('div', { className: 'whale-drag', style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'grab', color: '#111' } },
+      createElement('strong', { style: { fontSize: 13, color: '#111' } }, '⠿ ' + data.icon + ' ' + data.label),
+      createElement('span', { style: { fontSize: 10, opacity: 0.5, color: 'rgba(0,0,0,.5)' } }, data.stage)),
     createElement('textarea', {
       value: prompt, onChange: (e: any) => setPrompt(e.target.value), rows: data.stage === 'storyboard' ? 3 : 2,
       placeholder: data.stage === 'storyboard' ? '大纲（或角色清单）' : '提示词',
-      style: { width: '100%', boxSizing: 'border-box', padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(0,0,0,.18)', fontSize: 12, fontFamily: 'inherit' },
+      style: { width: '100%', boxSizing: 'border-box', padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(0,0,0,.18)', fontSize: 12, fontFamily: 'inherit', color: '#111', background: '#fff' },
     }),
     createElement('div', { style: { display: 'flex', gap: 6, alignItems: 'center' } },
       createElement('button', {
         onClick: run, disabled: busy,
         style: { border: 'none', borderRadius: 6, background: busy ? '#9aa5b1' : '#2ea043', color: '#fff', padding: '3px 12px', cursor: 'pointer', fontSize: 12 },
       }, busy ? '运行中…' : '▶ 运行'),
-      createElement('span', { style: { fontSize: 10, opacity: 0.6 } }, data.engine ?? 'auto')),
+      createElement('span', { style: { fontSize: 10, opacity: 0.6, color: 'rgba(0,0,0,.55)' } }, data.engine ?? 'auto')),
     r && (r.ok
       ? (r.shots
-          ? createElement('div', { style: { fontSize: 11, background: 'rgba(46,160,67,.1)', borderRadius: 6, padding: 4 } }, '分镜 ' + r.shots.length + ' 镜已生成')
+          ? createElement('div', { style: { fontSize: 11, background: 'rgba(46,160,67,.1)', borderRadius: 6, padding: 4, color: '#111' } }, '分镜 ' + r.shots.length + ' 镜已生成')
           : r.url
             ? createElement('img', { src: r.url, alt: 'out', style: { width: '100%', borderRadius: 6, border: '1px solid rgba(0,0,0,.1)' } })
-            : createElement('div', { style: { fontSize: 11, opacity: 0.7 } }, '✅ 完成'))
+            : createElement('div', { style: { fontSize: 11, opacity: 0.7, color: 'rgba(0,0,0,.6)' } }, '✅ 完成'))
       : createElement('div', { role: 'alert', style: { fontSize: 11, color: r?.status === 'quota-paused' ? '#b3870e' : '#c83c3c' } },
           (r?.status ?? 'error') + ': ' + (r?.error ?? r?.message ?? ''))),
     createElement(Handle, { type: 'source', position: Position.Bottom }),
@@ -98,15 +99,17 @@ export function WhaleFlow(_props: any): any {
     { id: 'e4', source: 'per-shot', target: 'video', markerEnd: { type: MarkerType.ArrowClosed } },
     { id: 'e5', source: 'video', target: 'final-cut', markerEnd: { type: MarkerType.ArrowClosed } },
   ]
-  const [nodes, setNodes, onNodesChange] = useNodesState(initNodes)
+  const [nodes, setNodes, onNodesChange] = useNodesState(initNodes.map((n: any) => ({ ...n, dragHandle: '.whale-drag' })))
   const [edges, setEdges, onEdgesChange] = useEdgesState(initEdges)
-  const addNode = () => {
+  const [menu, setMenu] = useState<{ x: number; y: number; nodeId?: string } | null>(null)
+  const addNodeAt = (x: number, y: number) => {
     const id = 'custom-' + Date.now()
     setNodes((nds: any[]) => [...nds, {
-      id, type: 'stage', position: { x: 120 + Math.random() * 240, y: 60 + Math.random() * 200 },
+      id, type: 'stage', position: { x, y },
       data: { stage: 'per-shot', label: '自定义节点', icon: '🔧', prompt: '自定义提示词', onResult, onDelete: () => setNodes((cur: any[]) => cur.filter((n) => n.id !== id)) },
     }])
   }
+  const addNode = () => addNodeAt(120 + Math.random() * 240, 60 + Math.random() * 200)
   const exportJson = () => {
     const payload = { kind: 'whale-flow', version: 1, nodes: nodes.map((n: any) => ({ id: n.id, stage: n.data?.stage, label: n.data?.label, prompt: n.data?.prompt, x: n.position?.x, y: n.position?.y })), edges: edges.map((e: any) => ({ id: e.id, source: e.source, target: e.target })) }
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
@@ -156,11 +159,21 @@ export function WhaleFlow(_props: any): any {
       createElement(ReactFlow, {
         nodes, edges, nodeTypes: NODE_TYPES as any,
         onNodesChange, onEdgesChange,
+        nodesDraggable: true, panOnDrag: true, zoomOnDoubleClick: true,
+        onPaneContextMenu: (e: any) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY }) },
+        onNodeContextMenu: (e: any, node: any) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, nodeId: node?.id }) },
         fitView: true, fitViewOptions: { padding: 0.2 }, minZoom: 0.3, maxZoom: 1.6,
       },
         createElement(Background, { gap: 24 }),
         createElement(Controls, null),
       ),
+      menu && createElement('div', { style: { position: 'fixed', left: menu.x, top: menu.y, zIndex: 9999, background: '#fff', border: '1px solid rgba(0,0,0,.15)', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,.15)', padding: 4, minWidth: 140 } },
+        createElement('div', { onClick: () => { const p = nodes.length ? (nodes[nodes.length - 1]?.position ?? { x: 0, y: 0 }) : { x: 0, y: 0 }; addNodeAt(p.x + 40, p.y + 40); setMenu(null) }, style: { ...menuItem, borderBottom: '1px solid rgba(0,0,0,.06)' } }, '＋ 添加节点'),
+        menu.nodeId && createElement('div', { onClick: () => { setNodes((cur: any[]) => cur.filter((n) => n.id !== menu.nodeId)); setMenu(null) }, style: menuItem }, '🗑 删除此节点'),
+        createElement('div', { onClick: () => { exportJson(); setMenu(null) }, style: menuItem }, '⬇ 导出工作流'),
+        createElement('div', { onClick: () => setMenu(null), style: menuItem }, '✕ 关闭'),
+      ),
     ),
   )
 }
+const menuItem = { padding: '5px 10px', fontSize: 12, borderRadius: 5, cursor: 'pointer', color: '#111' }

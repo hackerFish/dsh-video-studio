@@ -49,6 +49,25 @@ function splitShots(outline: string, shots: number): { index: number; line: stri
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function registerTools(ctx: any): void {
   ctx.tools.register({
+    name: 'whale_studio',
+    description: '在聊天区打开鲸影节点式工坊（React Flow 画布：流水线七段节点、可添加/导入 ComfyUI workflow、每节点单独运行）。执行后画布直接渲染在本次消息下方。',
+    parameters: {},
+    output: {
+      schema: {
+        type: 'object', additionalProperties: false,
+        properties: {
+          ok: { type: 'boolean', required: true },
+          note: { type: 'string', required: true },
+        },
+      },
+      render: (_args: unknown, value: { ok: boolean; note: string }) => [{ type: 'text', text: value.ok ? value.note : '打开失败' }],
+    },
+    execute() {
+      return Promise.resolve({ ok: true, note: '鲸影工坊已打开——节点画布在下方，可直接拖拽/连线/运行。' })
+    },
+  })
+
+  ctx.tools.register({
     name: 'whale_storyboard',
     description: 'Split a story outline into a shot list with per-shot prompts (pure local, no quota).',
     parameters: {
