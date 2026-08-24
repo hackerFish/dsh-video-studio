@@ -101,7 +101,7 @@ export function WhaleFlow(_props: any): any {
     { id: 'per-shot', type: 'stage', position: { x: 0, y: 510 }, data: { stage: 'per-shot', label: '逐镜资产图', icon: '🎞️', prompt: '林越雨夜骑手装站在十字路口，霓虹背光', onResult } },
     { id: 'video', type: 'stage', position: { x: 0, y: 680 }, data: { stage: 'video', label: '视频', icon: '🎬', prompt: '林越雨夜骑手装站在十字路口，霓虹背光，雨丝清晰', onResult } },
     { id: 'final-cut', type: 'stage', position: { x: 0, y: 850 }, data: { stage: 'final-cut', label: '成片', icon: '✂️', prompt: '全片剪辑合成', onResult } },
-  ].map((n: any) => ({ ...n, data: { ...n.data, result: resultMap[n.id] } }))
+  ].map((n: any) => ({ ...n, data: { ...n.data, onResult: (k: string, j: any) => onResult(n.id, j), result: resultMap[n.id] } }))
   const initEdges: import('@xyflow/react').Edge[] = [
     { id: 'e1', source: 'storyboard', target: 'scene', markerEnd: { type: MarkerType.ArrowClosed } },
     { id: 'e2', source: 'scene', target: 'props', markerEnd: { type: MarkerType.ArrowClosed } },
@@ -109,14 +109,17 @@ export function WhaleFlow(_props: any): any {
     { id: 'e4', source: 'per-shot', target: 'video', markerEnd: { type: MarkerType.ArrowClosed } },
     { id: 'e5', source: 'video', target: 'final-cut', markerEnd: { type: MarkerType.ArrowClosed } },
   ]
-  const [nodes, setNodes, onNodesChange] = useNodesState(initNodes.map((n: any) => ({ ...n, dragHandle: '.whale-drag' })))
+  const [nodes, setNodes, onNodesChange] = useNodesState(initNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initEdges)
+  const onConnect = useCallback((conn: any) => {
+    setEdges((eds: any[]) => [...eds, { ...conn, id: 'e' + Date.now(), markerEnd: { type: MarkerType.ArrowClosed } }])
+  }, [setEdges])
   const [menu, setMenu] = useState<{ x: number; y: number; nodeId?: string } | null>(null)
   const addNodeAt = (x: number, y: number) => {
     const id = 'custom-' + Date.now()
     setNodes((nds: any[]) => [...nds, {
       id, type: 'stage', position: { x, y },
-      data: { stage: 'per-shot', label: '自定义节点', icon: '🔧', prompt: '自定义提示词', onResult, onDelete: () => setNodes((cur: any[]) => cur.filter((n) => n.id !== id)) },
+      data: { stage: 'per-shot', label: '自定义节点', icon: '🔧', prompt: '自定义提示词', onResult: (k: string, j: any) => onResult(id, j), onDelete: () => setNodes((cur: any[]) => cur.filter((n) => n.id !== id)) },
     }])
   }
   const addNode = () => addNodeAt(120 + Math.random() * 240, 60 + Math.random() * 200)
@@ -175,14 +178,36 @@ export function WhaleFlow(_props: any): any {
     const id = 'comfy-' + className + '-' + Date.now()
     setNodes((nds: any[]) => [...nds, {
       id, type: 'stage', position: { x: 80 + Math.random() * 200, y: 60 + Math.random() * 240 },
-      data: { stage: 'per-shot', label: className, icon: '🧩', comfy: true, ckpt, prompt: '', onResult, onDelete: () => setNodes((cur: any[]) => cur.filter((n) => n.id !== id)) },
+      data: { stage: 'per-shot', label: className, icon: '🧩', comfy: true, ckpt, prompt: '', onResult: (k: string, j: any) => onResult(id, j), onDelete: () => setNodes((cur: any[]) => cur.filter((n) => n.id !== id)) },
     }])
+  }
+  // 全链运行：按顺序跑所有节点（storyboard→comfy→云引擎），结果回显节点
+  const runChain = async () => {
+    for (const n of nodes) {
+      const d = n.data ?? {}
+      const id = n.id
+      const prompt = d.prompt ?? ''
+      const body = d.stage === 'storyboard'
+        ? { outline: prompt, charactersText: d.charactersText ?? '', style: d.style ?? '', aspectRatio: d.ratio ?? '16:9' }
+        : d.comfy
+          ? { prompt, checkpoint: d.ckpt ?? ckpt }
+          : { prompt, aspectRatio: d.ratio ?? '16:9', durationSec: 5 }
+      const url = d.stage === 'storyboard' ? '/dsh-video-studio/storyboard' : d.comfy ? '/dsh-video-studio/comfyui/run' : '/dsh-video-studio/generate'
+      try {
+        const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+        onResult(id, await res.json())
+      } catch (e) {
+        onResult(id, { ok: false, error: String((e as Error)?.message ?? e) })
+      }
+      await new Promise((r) => setTimeout(r, 500))
+    }
   }
   const sidebarItem = { padding: '4px 8px', fontSize: 11, borderRadius: 5, cursor: 'pointer', color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }
   return createElement('div', { style: { width: '100%', height: '100%', minHeight: 640, position: 'relative', display: 'flex', flexDirection: 'column' } },
     createElement('style', null, FLOW_CSS),
     createElement('div', { style: { display: 'flex', gap: 8, padding: '6px 8px', borderBottom: '1px solid rgba(0,0,0,.08)', alignItems: 'center' } },
       createElement('button', { onClick: addNode, style: toolbarBtn }, '＋ 添加节点'),
+      createElement('button', { onClick: runChain, style: { ...toolbarBtn, background: '#7c3aed', color: '#fff', border: 'none' } }, '▶ 全链运行'),
       createElement('button', { onClick: exportJson, style: toolbarBtn }, '⬇ 导出 JSON'),
       createElement('label', { style: toolbarBtn, cursor: 'pointer' },
         '⬆ 导入 JSON（兼容 ComfyUI workflow）',
@@ -193,8 +218,8 @@ export function WhaleFlow(_props: any): any {
       createElement('div', { style: { flex: 1, position: 'relative' } },
         createElement(ReactFlow, {
           nodes, edges, nodeTypes: NODE_TYPES as any,
-          onNodesChange, onEdgesChange,
-          nodesDraggable: true, panOnDrag: true, zoomOnDoubleClick: true,
+          onNodesChange, onEdgesChange, onConnect,
+          nodesDraggable: true, panOnDrag: true, zoomOnDoubleClick: true, deleteKeyCode: ['Backspace', 'Delete'],
           onPaneContextMenu: (e: any) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY }) },
           onNodeContextMenu: (e: any, node: any) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, nodeId: node?.id }) },
           fitView: true, fitViewOptions: { padding: 0.2 }, minZoom: 0.3, maxZoom: 1.6,
