@@ -5,6 +5,9 @@ import { ReactFlow, Background, Controls, Handle, Position, MarkerType, useNodes
 
 // React Flow 最小必要样式（避免引入整份 CSS，client 加载器只跑 JS）
 const FLOW_CSS = `
+.react-flow { width: 100%; height: 100%; }
+.react-flow__node { position: absolute; }
+.react-flow__pane { touch-action: none; }
 .react-flow__handle { width: 10px; height: 10px; background: #4176e6; border: 2px solid #fff; border-radius: 50%; }
 .react-flow__edge-path { stroke: #9aa5b1; stroke-width: 2; }
 .react-flow__controls { box-shadow: 0 1px 4px rgba(0,0,0,.15); border-radius: 8px; overflow: hidden; }
