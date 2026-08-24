@@ -23,7 +23,10 @@ const fakeWindow = {
     load(entry) {
       assert.equal(entry.id, PKG_ID, '加载器收到的 id 不匹配')
       loaded.exports = entry.factory((spec) => {
+        // 宿主 createRequire 提供全部三个 react 相关包（与真实加载器一致）
         if (spec === 'react') return requireReal('react')
+        if (spec === 'react-dom') return requireReal('react-dom')
+        if (spec === 'react/jsx-runtime') return requireReal('react/jsx-runtime')
         throw new Error('意外 require: ' + spec)
       })
     },
