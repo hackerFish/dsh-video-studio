@@ -292,3 +292,51 @@ AI 漫剧形式写明 · AI 权属/标识责任明确 · 期限 ≥ 保底期 ·
 - **S28** 国家大学生就业服务平台《"网络副业训练营"骗钱套路揭秘》——980 元会员案例
 
 > 变更：2026-09-04 初版（检索 25+ 来源，全部政策数字核源标注）。政策类条目每季度复核或重大事件即时更新；与 `../craft/producing.md`（制片侧）互为表里——谈判拿到的保底档位/独家范围/结算口径回写制片排期与质量门，制片遇到的合规卡点回传本节修订。
+
+
+---
+
+## §11 国际金标准对照（2026-09 补强 · 只对照不替代上文）
+
+> 定位：上文是国内平台生态（备案→评级→保底）作战手册；本节并排国际版权交易金标准——好莱坞 windowing/territory 授权、国际"最低保证（Minimum Guarantee, MG）"模式、海外微短剧独立数据、creator economy 一线判断与跨境合同要点（S-T1–S-T6）。目的：**用国际范本校准国内谈判坐标**——很多国内协议缺失的条款（回款瀑布、费用封顶、权利回归、交付触发付款）在国际上是标配，可照搬术语写进国内合同。
+
+### 11.1 国内"评级保底" vs 国际"版权交易"（核心差异）
+
+| 维度 | 国内平台模式（上文 §1–§6） | 国际版权交易模式（S-T3/S-T4/S-T5） |
+|---|---|---|
+| 交易结构 | 平台评级定档换保底/分账，一家一谈 | **逐区域分销**：一区一约、一地一价，可同时多个买家 |
+| 前置门槛 | 备案 + AI 分层（§1） | 无内容审查，须权属链（chain of title）+ E&O 保险 |
+| 保底性质 | 平台补贴性、可随政策下调（S1/S4） | **MG = 不可退预付**：扑街买家也退不回，但会先从你的分成份额里全额 recoup |
+| 分成规则 | 平台定义公式："平台收入−成本"或时长×系数（§5.2） | **回款瀑布写死**：分销费(25–35%)→P&A→MG recoup→overage 才归你 |
+| 发行节奏 | 独家换高系数 or 多平台铺（§6.1） | **Windowing 窗口序列**：院线→PVOD→SVOD/AVOD→付费电视→免费电视，逐窗口逐区卖权利 |
+
+**国际可直接借鉴的五条**（谈国内合同时照搬术语要求）：
+1. **付款绑"交付验收"而非口号**：国际 MG 通行 10% 签约、90% 验收交付后付；验收清单与书面确认=付款触发条件（S-T4）。升级 §5.1"付款绑交付"为"列交付验收清单、写明书面验收即触发尾款"。
+2. **费用封顶（cap）思维**：国际共识"高保底+无上限营销费 < 低保底+费用封顶"（S-T4）；对应国内"高保底+平台单方解释权"（§5.4），谈判要求列明扣减项、逐项设上限。
+3. **回款瀑布写死**：把分成基数、扣减项与顺序、结算周期、后台对账快照白纸黑字，堵住"按平台政策调整"（§5.2）（S-T4）。
+4. **权利回归（reversion）**：国际标配——买家不履约或限期未发行则权利回归出品方（S-T5）；国内合同同样写"平台砍项目或未按期上线→授权自动回归我方"（对齐 §5.1）；且只授最低必要权利，与 §5.4"只授权不买断"同源（S-T5）。
+5. **把自产 IP 当"窗口资产"管理**：好莱坞院线窗口已从 90 天压到 45 天，仍逐窗口逐区变现（S-T3）——单兵为自产 IP 设计"独家首发→转多平台→海外分区→长尾衍生"窗口序列，**每转一次窗口 = 重新报价一次**。
+
+### 11.2 海外微短剧的国际数据坐标（校准 §8 出海盘）
+
+- **Sensor Tower《State of Short Drama Apps 2026》**：2026 Q1 DramaBox 与 ReelShort 内购收入**各约 1.4 亿美元**、稳居全球第一梯队；下载增量转向东南亚/拉美/印度，美国仍是收入锚（S-T1）。
+- **Media Partners Asia《ReelShort / Crazy Maple Studio: Inside the US$1B Micro-Drama Machine》**（2026-08）：除中国外微短剧市场 **2025 年 27 亿$ → 2026 年 36 亿$ → 2031 年预计 95 亿$**，并给出完整财务模型与 2026 盈利拐点判断（S-T2）——海外已是可建模、可融资的成熟品类。
+- 口径提醒：§8.1 引国内报道"海外超 60 亿$"与 MPA"除中国 36 亿$"统计口径不同（含不含中国大陆/转译渠道）——对外报价前统一口径，别混用。
+
+### 11.3 creator economy 金标准（a16z 圈层一线判断）
+
+a16z 消费方向 Ish Verduzco 在 a16z 举办的 50 位顶级创作者聚会后总结 7 条（S-T6），鲸影最值得抄的三条：
+1. **Own your audience（自拥受众）**：顶级创作者都在建私域/邮件，算法平台只是获客入口——平台 IP 库补贴剧（§4.2）照接，但把流量沉淀进自频道等自留地，长尾才属于你。
+2. **打包式商单**：把多形态内容打包成"组合赞助"比一次性广告单收入更可预测——接品牌漫剧商单（§7）时主动打包"正片+切片+花絮+数据报告"：一次制作、四份报价。
+3. **分发是终极护城河**：人人能造内容，拉开差距的是分发——鲸影差异化叙事（§3.1）从"工程稳定产能"升级为"产能×矩阵分发×IP 窗口序列"；品牌与分发叠加才是 moat。
+
+### 11.4 国际来源清单（2026-09-04 检索）
+
+- **S-T1** Sensor Tower, *State of Short Drama Apps 2026*——DramaBox/ReelShort 2026 Q1 各约 US$140M IAP、区域格局。https://sensortower.com/blog/state-of-short-drama-apps-2026-report
+- **S-T2** Media Partners Asia, *ReelShort / Crazy Maple Studio: Inside the US$1B Micro-Drama Machine*（2026-08）——除中国微短剧 27→36→95 亿$、CMS 财务模型。https://www.media-partners-asia.com/reports/reelshort-crazy-maple-studio-inside-the-us1b-micro-drama-machine
+- **S-T3** Vitrina, *How Film Distribution Works: Theatrical, Digital & Streaming Explained*（2026）——windowing 窗口、territory 分区授权、分销费率。https://vitrina.ai/blog/distribution-in-film-industry
+- **S-T4** Tools for Film, *Minimum Guarantees in Film Distribution*——MG 性质、回款瀑布、P&A 封顶与盈亏平衡模型。https://www.toolsforfilm.com/blog/minimum-guarantees-film-distribution
+- **S-T5** Art and Media Law, *Entertainment Contract Essentials*——跨境娱乐合同关键条款（grant/territory/term/reversion/MFN/红旗条款）。https://artandmedialaw.com/entertainment-contract-essentials
+- **S-T6** I. Verduzco（a16z）, *7 Insights from Hosting 50 Creators at a16z*——own your audience、打包赞助、分发即护城河。https://internetempires.com/p/7-insights-from-hosting-50-creators-at-a16z
+
+> 边界：方法论对照、不构成法律意见；S-T2 为付费报告（此处仅引其公开摘要）；国际数字与国内来源（S21/S22）统计口径不同，引用前先统一。

@@ -333,3 +333,45 @@
 - 鲸影 quota/质检日志：Seedance 2.0 可用率 ~90%（旧 ~20%）；90 分钟项目算力 1 万+→~2000–3000 元
 
 **待核（公开检索未获证，禁止当事实传播）**：评级保底 90–360 万/部、仿真人分账 60 倍系数（→ business.md）；外包单价（§7.3）；图资产/配音内部预算区间。
+
+---
+
+## 10. 国际金标准对照（2026-09 补强）
+
+> 金标准补强节：把上文中文生态数字放上国际顶级英文来源的同一把尺子。只补对照、不改 §1–9 结论；汇率 ~7.2 元/$ 粗算；国际价目变化快，立项前回当期页面复核（出处 §10.3）。
+
+### 10.1 国际 API 定价基准：F2/F3 的全球坐标
+
+| 模型（国际通道） | 官方 API 价 | $/分钟 | 盲评 Elo | 来源 |
+|---|---|---|---|---|
+| Seedance 2.0 720p（字节·官方列表价） | $0.151/s | **$9.07** | T2V 1,228 / I2V 1,199 | Artificial Analysis（2026-07 快照） |
+| Gemini Omni Flash（Google） | $0.10/s | $6.00 | 1,246（T2V 第 1） | 同上 |
+| Kling 3.0 Pro 1080p（快手） | $0.336/s | $20.16 | 1,113 | 同上 |
+| Veo 3.1（Google，fal 通道） | $0.20–0.40/s（1080p 无音/含音；4K 至 $0.60） | ~$12–24 | 1,095 | fal.ai + AA |
+| Wan 2.5（fal 聚合，开源系） | $0.05/s | ~$3 | — | fal.ai/pricing |
+| Kling 2.5 Turbo Pro（fal 聚合） | $0.07/s | ~$4.2 | — | fal.ai/pricing |
+
+**对照结论**
+- **F2 获国际独立站台**：Seedance 2.0 官方 $9.07/分钟 ≈ ¥65/min，与 F2 完全一致；比 Veo 3.1（$24）低 ~62%、比 Kling 3.0 Pro（$20.16）低 ~55%，盲评 Elo 反超两者——"性价比第一"非自嗨（AA 追踪官方 API 列表价，非促销价）。
+- **国际 API 秒单价带 ≈$0.04–0.75/s**：草稿级地板（开源 Wan 系 $0.05/s ≈ ¥0.36/s；Kling/Runway Turbo 档 $0.04–0.10/s）≈ 本文第三方档（F3 $0.056/s≈¥0.4/s），比国内官方档（¥1/s≈$0.14/s）便宜 ~3×——国际低档靠开源直供，国内靠第三方转售，结构不同、价格带重叠。
+- **比价须统一到 $/秒或 $/分钟**：国际按秒/clip 直计，国内官方走 ¥/M tokens（F1）——tokens 价目与 $/s 直接比 = 铁律①口径陷阱变种。
+
+### 10.2 成本模型差异：可用率、口径与人力结构
+
+| 维度 | 国际金标准 | 本文口径 | 差异解读 |
+|---|---|---|---|
+| 重生成倍数 m | 中位 **1.4–1.8 次/可用镜头**（严格场景 2–4 次）；全加载 = 列表价 **×3–4**（revision tax）；inVideo 实测成片率 ~25%（164 生成→41 可用） | 预算 m=2.0、优化 m=1.1–1.2（F9）；现金预算不含 ×3–4 加载系数 | 预算口径在国际区间内；**优化态偏乐观**（国际中位隐含 r≈55–70%，本文 90% 靠单模型高可用+免费粗筛）→ 规划兜底 **m≥1.5** |
+| 真人成本锚 | 好莱坞片厂均值 **$65M/部**（ATL 15–30%、BTL 40–50%、后期 10–20%、杂项 8–15%）≈ **$0.5M/成片分钟**；旗舰 $1M+/min | 真人精品 ~150 万/部（F4） | AI 把成片分钟成本压掉 **4–5 个数量级**，全球结构性事实 |
+| AI 成片成本锚 | 实测 AI 短片 **$315–750/成片分钟**（5 部单据、含过生成）；真人商片传统通道 $1k–50k/min | 现金 $25–48/min；全口径 $46–77/min | 差 ~0.5–1.5 数量级：美元全价 API+团队实付 vs 人民币第三方通道+单兵折价+自动化——报"便宜 N 倍"必带口径 |
+| 买方集中/政策 | 美国 7 大买家占内容支出 84%；AI 五年影响 ~20% 原创支出、**$60B/年**再分配、~$10B 美国 2030 支出可触及（McKinsey） | 投流 70%、保底收紧、平台分化（F5/F6） | 买方集中+保底收紧是**全球规律**（麦肯锡），§2.4 书面条款验证应升格全球风控 |
+
+### 10.3 本节来源（英文原文，检索日 2026-09）
+
+- **Artificial Analysis** Video Arena（盲评 Elo + 官方 API 价归一化 $/分钟）：artificialanalysis.ai/video/leaderboard/text-to-video（本表数值经 seedance2.so《Is Seedance 2.0 Worth It?》2026-07-28 转表核验：seedance2.so/blog/is-seedance-2-worth-it）
+- **fal.ai** 官方定价页与模型文档（Wan2.5 $0.05/s、Kling 2.5 Turbo Pro $0.07/s、Veo3 $0.40/s；Veo3.1 $0.20–0.60/s）：fal.ai/pricing · fal.ai/models/fal-ai/veo3.1/image-to-video/llms.txt
+- **kompozy.io**《The unit economics of AI video production in 2026》（2026-06-17 复核）：kompozy.io/ai-video-generation/ai-video-cost-economics
+- **inVideo**《AI Film Production Cost》（$315–750/成片分钟、25% 成片率）：invideo.io/blog/ai-film-production-cost/
+- **McKinsey & Company**《What AI could mean for film and TV production and the industry's future》：www.mckinsey.com/industries/technology-media-and-telecommunications/our-insights/what-ai-could-mean-for-film-and-tv-production-and-the-industrys-future
+- **Filmcane**《How Much Does It Cost to Make a Movie: 2026 Budget Guide》（2026-01-25，Celtx 引）：filmcane.com/blog/how-much-does-it-cost-to-make-a-movie
+
+> 增量小结：引入 6 个国际英文源，F2（$9/min）/F3/F5/F6 获独立印证；修正提示两条——①优化态 m 低于国际中位，规划兜底 m≥1.5；②国际"全加载 = 列表价 ×3–4"提示本文现金预算未含加载系数，对外比价必带口径。其余结论不变。
